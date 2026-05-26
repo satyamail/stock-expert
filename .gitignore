@@ -1,0 +1,18 @@
+# StockExpert Gitignore
+
+# Database files
+stock_expert.db
+stock_expert.db-journal
+
+# Private credentials & environment configs
+.env
+.env.local
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local IDEs
+.vscode/
+.idea/

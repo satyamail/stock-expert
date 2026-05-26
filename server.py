@@ -11,8 +11,13 @@ import threading
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+# Import Screener Adapter
+from screener_adapter import ScreenerAdapter
+
 DB_FILE = "stock_expert.db"
 PORT = 8000
+
+screener = ScreenerAdapter()
 
 # --- DATABASE SETUP & MIGRATION ---
 def init_db():
@@ -84,17 +89,15 @@ def init_db():
 def hash_password(password: str, salt: bytes = None) -> tuple[bytes, bytes]:
     if salt is None:
         salt = os.urandom(16)
-    # PBKDF2 secure password hashing using standard library
     pwd_hash = hashlib.pbkdf2_hmac(
         'sha256',
         password.encode('utf-8'),
         salt,
-        100000 # 100,000 iterations for modern security
+        100000
     )
     return pwd_hash, salt
 
 def verify_session(headers) -> int:
-    # Extracts authorization token from request headers
     auth_header = headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return None
@@ -109,102 +112,89 @@ def verify_session(headers) -> int:
     return row[0] if row else None
 
 
-# --- 24/7 BACKGROUND STOCK SCANNER DAEMON ---
-# Mock pricing array for stocks to simulate real-time scan calculations
-MOCK_MARKET = {
-    "AAPL": {"price": 189.84, "rsi": 62},
-    "NVDA": {"price": 949.50, "rsi": 74},
-    "MSFT": {"price": 430.32, "rsi": 58},
-    "TSLA": {"price": 179.24, "rsi": 38},
-    "RELIANCE": {"price": 2955.50, "rsi": 61},
-    "TCS": {"price": 3845.00, "rsi": 48},
-    "HDFCBANK": {"price": 1512.40, "rsi": 54}
-}
+# --- LIVE SCREENER MARKET MEMORY ---
+# Holds current dynamically scanned stocks from Screener.in
+LIVE_MARKET_PICK = []
+
+def run_screener_scan():
+    global LIVE_MARKET_PICK
+    print("[Scanner] Initiating live scan sweep on Screener.in...")
+    
+    # Authenticate if possible
+    screener.login()
+    
+    # Query Nifty stocks with high return on equity and safe debt margins
+    query = "Return on equity > 15 AND Debt to equity < 0.8 AND Price to Earning < 25 AND Current price < Intrinsic Value"
+    scanned_stocks = screener.execute_query(query)
+    
+    if scanned_stocks:
+        LIVE_MARKET_PICK = scanned_stocks
+        print(f"[Scanner] Scanned {len(LIVE_MARKET_PICK)} Nifty stocks matching criteria from Screener.in successfully.")
+    else:
+        # Static fallback if screener is offline or query was blocked
+        print("[Scanner] Screener.in returned no results. Preserving current market data.")
 
 def run_247_scanner():
     print("[Scanner] Background 24/7 scanning service started successfully.")
     
-    # Infinite loop to keep running in background indefinitely
+    # Run initial live market scan on boot
+    run_screener_scan()
+    
+    scan_counter = 0
     while True:
         try:
-            time.sleep(10) # Checks active investments every 10 seconds for visual simulation
+            time.sleep(10)
+            scan_counter += 1
             
+            # Every 120 cycles (20 minutes), execute a new live scan sweep on Screener.in
+            if scan_counter >= 120:
+                run_screener_scan()
+                scan_counter = 0
+            
+            # Monitor users portfolios for stop-losses or low RSI warnings
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
-            
-            # Fetch all user holdings
             cursor.execute("SELECT user_id, ticker, qty, avg_price FROM portfolio WHERE qty > 0")
             holdings = cursor.fetchall()
             
             for user_id, ticker, qty, avg_price in holdings:
-                # Retrieve simulated pricing
-                market_info = MOCK_MARKET.get(ticker)
-                if not market_info:
+                # Find matching scanned stock to fetch current price
+                scanned_stock = next((s for s in LIVE_MARKET_PICK if s["ticker"] == ticker), None)
+                if not scanned_stock:
                     continue
                 
-                current_price = market_info["price"]
+                current_price = scanned_stock["price"]
+                health_score = scanned_stock["healthScore"]
                 
-                # SIMULATED DOWNTREND CALCULATION
-                # Let's trigger a panic sell:
-                # 1. If stock price drops more than 8% below avg purchase price (Stop-Loss rule) OR
-                # 2. If RSI drops below 35 (extreme technical weakness)
-                
+                # Auto-Sell Conditions:
+                # 1. 8% Price drop (Stop-Loss)
+                # 2. Health score deteriorates (P/E or Debt spike)
                 price_drop_percent = ((avg_price - current_price) / avg_price) * 100
-                rsi_value = market_info["rsi"]
                 
                 should_sell = False
                 reason = ""
                 
-                # Check for criteria breach
                 if price_drop_percent >= 8.0:
                     should_sell = True
-                    reason = f"Stop-Loss triggered: Ticker price dropped {price_drop_percent:.1f}% below average cost."
-                elif rsi_value < 40: # Panic indicator threshold
+                    reason = f"Stop-Loss triggered: Price dropped {price_drop_percent:.1f}% below average cost."
+                elif health_score < 60:
                     should_sell = True
-                    reason = f"Downtrend Detected: RSI momentum index plummeted to {rsi_value}."
-                
+                    reason = f"Fundamental Deterioration: Screener health score dropped to {health_score}."
+                    
                 if should_sell:
-                    print(f"[Scanner ALERT] Executing Auto-Sell for User {user_id} - {ticker}. Reason: {reason}")
-                    
-                    # 1. Calculate proceeds
                     proceeds = qty * current_price
-                    
-                    # 2. Update user cash balance
                     cursor.execute("UPDATE user_cash SET cash_balance = cash_balance + ? WHERE user_id = ?", (proceeds, user_id))
-                    
-                    # 3. Clear the stock holding
                     cursor.execute("DELETE FROM portfolio WHERE user_id = ? AND ticker = ?", (user_id, ticker))
-                    
-                    # 4. Insert detailed Scan activity log
                     cursor.execute("""
                         INSERT INTO scanner_logs (user_id, ticker, action, reason, price) 
                         VALUES (?, ?, 'AUTO-SELL PANIC PULLOUT', ?, ?)
                     """, (user_id, ticker, reason, current_price))
-                    
                     conn.commit()
+                    print(f"[Scanner ALERT] Automating panic pullout for User {user_id} - {ticker} at {current_price}.")
                     
             conn.close()
-            
-            # Randomly fluctuate RSI & Prices of mock market to simulate live ticks
-            # This triggers scanner auto-sell reactions dynamically for the user!
-            for tk in MOCK_MARKET:
-                # Random fluctuations
-                import random
-                # 30% chance of sudden drop on TSLA or Apple to trigger the scanner live!
-                if random.random() < 0.25:
-                    if tk == "TSLA":
-                        MOCK_MARKET["TSLA"]["rsi"] = random.randint(28, 37) # Trigger panic
-                        MOCK_MARKET["TSLA"]["price"] *= 0.95
-                    elif tk == "AAPL":
-                        MOCK_MARKET["AAPL"]["rsi"] = random.randint(30, 39) # Trigger panic
-                        MOCK_MARKET["AAPL"]["price"] *= 0.94
-                else:
-                    # Normal random walk
-                    MOCK_MARKET[tk]["rsi"] = max(20, min(95, MOCK_MARKET[tk]["rsi"] + random.choice([-2, -1, 0, 1, 2])))
-                    MOCK_MARKET[tk]["price"] += random.choice([-5.0, -1.0, 1.0, 5.0])
-                    
         except Exception as e:
-            print(f"[Scanner Error]: {str(e)}")
+            print(f"[Scanner Daemon Error]: {str(e)}")
             time.sleep(5)
 
 
@@ -212,7 +202,6 @@ def run_247_scanner():
 class StockRequestHandler(BaseHTTPRequestHandler):
     
     def end_headers(self):
-        # Prevent Clickjacking & MIME-type sniffing threats
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("X-Content-Type-Options", "nosniff")
         super().end_headers()
@@ -245,10 +234,9 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             
             conn.close()
             
-            # Enrich active pricing from scanner mock market
-            for h in holdings:
-                if h["ticker"] in MOCK_MARKET:
-                    MOCK_MARKET[h["ticker"]]["price"] = round(MOCK_MARKET[h["ticker"]]["price"], 2)
+            # Map pricing dictionaries for front-end autocomplete
+            prices_dict = {s["ticker"]: s["price"] for s in LIVE_MARKET_PICK}
+            rsi_dict = {s["ticker"]: int(s.get("rsi", 50)) for s in LIVE_MARKET_PICK}
             
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -256,8 +244,8 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "cash": cash,
                 "holdings": holdings,
-                "marketPrices": {tk: info["price"] for tk, info in MOCK_MARKET.items()},
-                "marketRSIs": {tk: info["rsi"] for tk, info in MOCK_MARKET.items()}
+                "marketPrices": prices_dict,
+                "marketRSIs": rsi_dict
             }).encode("utf-8"))
             return
 
@@ -267,7 +255,7 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 self.send_response(401)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Unauthorized session"}).encode("utf-8"))
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
                 return
             
             conn = sqlite3.connect(DB_FILE)
@@ -286,7 +274,6 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 "reason": row[3],
                 "price": row[4]
             } for row in cursor.fetchall()]
-            
             conn.close()
             
             self.send_response(200)
@@ -295,6 +282,14 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"logs": logs}).encode("utf-8"))
             return
             
+        elif path == "/api/stocks":
+            # API endpoint to fetch scanned stocks list for front-end screeners
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"stocks": LIVE_MARKET_PICK}).encode("utf-8"))
+            return
+
         # --- SERVE STATIC FRONTEND FILES ---
         if path == "/":
             path = "/index.html"
@@ -306,13 +301,10 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"404 Not Found")
             return
             
-        # Select correct MIME Content-Type
         content_type = "text/plain"
         if path.endswith(".html"): content_type = "text/html"
         elif path.endswith(".css"): content_type = "text/css"
         elif path.endswith(".js"): content_type = "application/javascript"
-        elif path.endswith(".png"): content_type = "image/png"
-        elif path.endswith(".svg"): content_type = "image/svg+xml"
         
         self.send_response(200)
         self.send_header("Content-Type", content_type)
@@ -324,7 +316,6 @@ class StockRequestHandler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         path = url.path
         
-        # Read request body safely
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length).decode('utf-8')
         
@@ -333,7 +324,7 @@ class StockRequestHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             body = {}
             
-        # --- REGISTRATION ENDPOINT ---
+        # --- API SIGNUP ENDPOINT ---
         if path == "/api/auth/register":
             username = body.get("username", "").strip()
             password = body.get("password", "")
@@ -342,31 +333,28 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Username required, and password must be at least 6 characters."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"error": "Invalid username or password length (min 6)."}).encode("utf-8"))
                 return
                 
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
-            
-            # Secure parameterization prevents SQL injection
             cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
             if cursor.fetchone():
                 conn.close()
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Username already exists."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"error": "Username already taken."}).encode("utf-8"))
                 return
                 
             pwd_hash, salt = hash_password(password)
             try:
                 cursor.execute("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)", (username, pwd_hash, salt))
                 user_id = cursor.lastrowid
-                # Set default virtual capital $100,000.00
                 cursor.execute("INSERT INTO user_cash (user_id, cash_balance) VALUES (?, ?)", (user_id, 100000.00))
                 conn.commit()
                 status = 201
-                response = {"success": "Account registered successfully! Please login."}
+                response = {"success": "Account registered! You can now log in."}
             except sqlite3.Error as e:
                 status = 500
                 response = {"error": f"Database error: {str(e)}"}
@@ -393,13 +381,12 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Invalid username or password."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"error": "Invalid credentials."}).encode("utf-8"))
                 return
                 
             user_id, saved_hash, salt = row
             input_hash, _ = hash_password(password, salt)
             
-            # Constant-time comparison mitigates timing attacks
             if hmac_compare(saved_hash, input_hash):
                 token = str(uuid.uuid4())
                 cursor.execute("INSERT INTO sessions (token, user_id) VALUES (?, ?)", (token, user_id))
@@ -408,7 +395,7 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 response = {"token": token, "username": username}
             else:
                 status = 400
-                response = {"error": "Invalid username or password."}
+                response = {"error": "Invalid credentials."}
                 
             conn.close()
             self.send_response(status)
@@ -433,6 +420,25 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"success": "Logged out"}).encode("utf-8"))
             return
 
+        # --- MANUAL RE-SCAN TRIGGER ENDPOINT ---
+        elif path == "/api/scanner/trigger":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+                
+            # Execute scanner sweep
+            run_screener_scan()
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": f"Scanned NSE Market. Found {len(LIVE_MARKET_PICK)} matching stocks."}).encode("utf-8"))
+            return
+
         # --- PORTFOLIO TRANSACTION EXECUTION ---
         elif path == "/api/portfolio/trade":
             user_id = verify_session(self.headers)
@@ -440,38 +446,37 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 self.send_response(401)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Unauthorized session"}).encode("utf-8"))
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
                 return
                 
             ticker = body.get("ticker")
             qty = int(body.get("qty", 0))
-            action = body.get("action") # BUY or SELL
+            action = body.get("action")
             
             if not ticker or qty <= 0 or action not in ["BUY", "SELL"]:
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Invalid transaction values."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"error": "Invalid values."}).encode("utf-8"))
                 return
                 
-            market_price = MOCK_MARKET.get(ticker, {}).get("price", 0.0)
-            if market_price == 0.0:
+            # Find matching scanned stock price
+            scanned_stock = next((s for s in LIVE_MARKET_PICK if s["ticker"] == ticker), None)
+            if not scanned_stock:
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Failed to fetch live stock price."}).encode("utf-8"))
+                self.wfile.write(json.dumps({"error": f"Ticker {ticker} not found in current live Nifty scans."}).encode("utf-8"))
                 return
                 
+            market_price = scanned_stock["price"]
             total_cost = market_price * qty
             
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
-            
-            # Fetch user cash balance
             cursor.execute("SELECT cash_balance FROM user_cash WHERE user_id = ?", (user_id,))
             cash = cursor.fetchone()[0]
             
-            # Fetch current stock holding
             cursor.execute("SELECT qty, avg_price FROM portfolio WHERE user_id = ? AND ticker = ?", (user_id, ticker))
             holding = cursor.fetchone()
             hold_qty = holding[0] if holding else 0
@@ -486,18 +491,15 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({"error": "Insufficient cash balance."}).encode("utf-8"))
                     return
                     
-                # Update cash
                 new_cash = cash - total_cost
                 cursor.execute("UPDATE user_cash SET cash_balance = ? WHERE user_id = ?", (new_cash, user_id))
                 
-                # Update holdings
                 if hold_qty > 0:
                     new_qty = hold_qty + qty
                     new_avg = ((hold_qty * hold_avg) + total_cost) / new_qty
                     cursor.execute("UPDATE portfolio SET qty = ?, avg_price = ? WHERE user_id = ? AND ticker = ?", (new_qty, new_avg, user_id, ticker))
                 else:
                     cursor.execute("INSERT INTO portfolio (user_id, ticker, qty, avg_price) VALUES (?, ?, ?, ?)", (user_id, ticker, qty, market_price))
-                    
                 conn.commit()
                 status = 200
                 response = {"success": f"Successfully bought {qty} shares of {ticker}!"}
@@ -508,7 +510,7 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                     self.send_response(400)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps({"error": "Insufficient shares to sell."}).encode("utf-8"))
+                    self.wfile.write(json.dumps({"error": "Insufficient shares."}).encode("utf-8"))
                     return
                     
                 new_cash = cash + total_cost
@@ -519,7 +521,6 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                     cursor.execute("DELETE FROM portfolio WHERE user_id = ? AND ticker = ?", (user_id, ticker))
                 else:
                     cursor.execute("UPDATE portfolio SET qty = ? WHERE user_id = ? AND ticker = ?", (remaining_qty, user_id, ticker))
-                    
                 conn.commit()
                 status = 200
                 response = {"success": f"Successfully sold {qty} shares of {ticker}!"}
@@ -532,7 +533,6 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             return
 
 def hmac_compare(a: bytes, b: bytes) -> bool:
-    # Basic constant-time comparison to prevent side-channel timing attacks
     if len(a) != len(b):
         return False
     result = 0
@@ -544,7 +544,6 @@ def hmac_compare(a: bytes, b: bytes) -> bool:
 def run_server():
     init_db()
     
-    # Start the 24/7 scanning background daemon thread
     scanner_thread = threading.Thread(target=run_247_scanner, daemon=True)
     scanner_thread.start()
     
