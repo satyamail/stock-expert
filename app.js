@@ -943,6 +943,56 @@ window.loadAnalyzerForTicker = function(ticker) {
     const disc = calculateDiscount(s.fairValue, currentPrice);
     const discClass = parseFloat(disc) > 0 ? "positive" : "negative";
 
+    // --- DUAL-HORIZON VERDICT ALGORITHM ---
+    // Short-Term (3-6 Months) - Focus: Technical Momentum / RSI
+    let shortTermVerdict = "HOLD";
+    let shortTermClass = "badge-warning";
+    let shortTermScore = 55;
+    let shortTermDesc = `Stable neutral range. RSI is at a healthy ${rsiVal} indicating robust technical trend consolidation with headroom.`;
+    
+    if (rsiVal > 72) {
+        shortTermVerdict = "AVOID / WAIT";
+        shortTermClass = "badge-danger";
+        shortTermScore = 32;
+        shortTermDesc = `RSI of ${rsiVal} signals highly overbought conditions. Momentum is overextended; wait for a healthy pullback in the next 3-6 months.`;
+    } else if (rsiVal >= 45 && rsiVal <= 65) {
+        shortTermVerdict = "BUY";
+        shortTermClass = "badge-success";
+        shortTermScore = 82;
+        shortTermDesc = `Strong short-term bullish trend with solid volume backing. RSI at ${rsiVal} is prime for technical entries over 3-6 months.`;
+    } else if (rsiVal < 38) {
+        shortTermVerdict = "ACCUMULATE";
+        shortTermClass = "badge-info";
+        shortTermScore = 75;
+        shortTermDesc = `Oversold territory (RSI: ${rsiVal}). Momentum is carving a bottom; perfect for accumulating a reversal play.`;
+    }
+
+    // Long-Term (1 Year +) - Focus: Fundamental Solvency & Margin of Safety Discount
+    let longTermVerdict = "HOLD";
+    let longTermClass = "badge-warning";
+    let longTermScore = 65;
+    let longTermDesc = "Decent financial indicators, but trades close to fair value. Monitor top-line quarterly growth cycles.";
+    
+    const parsedDisc = parseFloat(disc);
+    const isHealthy = s.roe > 15 && s.de < 0.8;
+    
+    if (isHealthy && parsedDisc >= 12.0) {
+        longTermVerdict = "STRONG BUY";
+        longTermClass = "badge-success";
+        longTermScore = 94;
+        longTermDesc = `Outstanding fundamental pillars! High ROCE/ROE (${s.roe}%), safe debt leverage (${s.de}), and trading at an excellent safety discount of ${parsedDisc}%. Ideal long-term compounder.`;
+    } else if (isHealthy && parsedDisc > 0) {
+        longTermVerdict = "ACCUMULATE";
+        longTermClass = "badge-info";
+        longTermScore = 82;
+        longTermDesc = `Solid operational foundations with ROE of ${s.roe}%. Trading at a modest margin of safety (${parsedDisc}%). Suitable for active accumulation.`;
+    } else if (parsedDisc < -10) {
+        longTermVerdict = "AVOID / OVERVALUED";
+        longTermClass = "badge-danger";
+        longTermScore = 40;
+        longTermDesc = `Fundamentally overvalued relative to computed intrinsic value. Trading at a premium of ${Math.abs(parsedDisc)}%. High risk for long-term entry at current prices.`;
+    }
+
     container.innerHTML = `
         <div class="analyzer-details-header">
             <div class="analyzer-company-title">
@@ -986,22 +1036,38 @@ window.loadAnalyzerForTicker = function(ticker) {
                 </div>
             </div>
 
-            <div class="glass-card col-span-4">
+            <!-- Dual-Horizon Verdict Workspace -->
+            <div class="glass-card col-span-4" style="border: 1px solid rgba(139, 92, 246, 0.25);">
                 <div class="card-header">
-                    <h3>Screener.in Valuation Math</h3>
+                    <h3>Dual-Horizon Verdict</h3>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 14px">
-                    <div style="display: flex; justify-content: space-between">
-                        <span>Calculated Intrinsic Value:</span>
-                        <strong>${formatCurrency(s.fairValue)}</strong>
+                <div style="display: flex; flex-direction: column; gap: 18px">
+                    <!-- Short-Term (3-6 Months) -->
+                    <div style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">SHORT-TERM (3-6 Mos)</span>
+                            <span class="badge ${shortTermClass}" style="font-size: 10px;">${shortTermVerdict}</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-primary); line-height: 1.4;">
+                            ${shortTermDesc}
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px;">
+                            Score: <strong>${shortTermScore} / 100</strong> (Focus: Technical Momentum)
+                        </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between">
-                        <span>Current Market Price:</span>
-                        <strong>${formatCurrency(currentPrice)}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px">
-                        <span>Safety discount margin:</span>
-                        <strong class="${discClass}">${parseFloat(disc) > 0 ? '+' : ''}${disc}%</strong>
+                    
+                    <!-- Long-Term (1 Year +) -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">LONG-TERM (1 Yr +)</span>
+                            <span class="badge ${longTermClass}" style="font-size: 10px;">${longTermVerdict}</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-primary); line-height: 1.4;">
+                            ${longTermDesc}
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px;">
+                            Score: <strong>${longTermScore} / 100</strong> (Focus: Fundamental Value)
+                        </div>
                     </div>
                 </div>
             </div>
