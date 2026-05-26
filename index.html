@@ -152,6 +152,10 @@
                                 <i data-lucide="cpu" style="width: 16px; height: 16px;"></i>
                                 <span>Run Deep Research Analyzer</span>
                             </button>
+                            <button class="btn btn-primary" id="btn-banner-custom-audit" style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); border: none; box-shadow: 0 4px 15px rgba(13, 148, 136, 0.3);">
+                                <i data-lucide="search-check" style="width: 16px; height: 16px;"></i>
+                                <span>Custom Solvency Audit</span>
+                            </button>
                         </div>
                     </div>
                     <div class="market-quick-stats">
@@ -549,6 +553,131 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- CUSTOM SOLVENCY AUDIT MODAL -->
+    <div id="custom-audit-modal" class="auth-overlay hidden" style="z-index: 10001; background: rgba(6, 8, 20, 0.88); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);">
+        <div class="glass-card" style="width: 95%; max-width: 1020px; padding: 32px; border: 1px solid rgba(139, 92, 246, 0.45); box-shadow: 0 24px 72px rgba(139, 92, 246, 0.3); animation: authBounce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative; max-height: 92vh; overflow-y: auto;">
+
+            <!-- Close Button -->
+            <button id="btn-close-custom-audit" style="position: absolute; top: 18px; right: 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); width: 36px; height: 36px; border-radius: 50%; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; z-index: 10;">
+                <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+            </button>
+
+            <!-- Header -->
+            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 24px; border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 18px;">
+                <div style="background: linear-gradient(135deg, rgba(139,92,246,0.25) 0%, rgba(79,70,229,0.15) 100%); width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 12px; border: 1px solid rgba(139,92,246,0.3);">
+                    <i data-lucide="search-check" style="color: #a78bfa; width: 22px; height: 22px;"></i>
+                </div>
+                <div>
+                    <h2 style="color: #fff; font-size: 20px; font-weight: 800; margin: 0; background: linear-gradient(90deg, #fff 0%, #a78bfa 60%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Custom Solvency Audit</h2>
+                    <p style="color: var(--text-secondary); font-size: 12px; margin: 3px 0 0 0;">DVSMS deep audit for any stock — enter a ticker to run the solvency formula</p>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div style="display: flex; gap: 10px; margin-bottom: 24px; align-items: stretch;">
+                <div style="flex: 1; position: relative;">
+                    <i data-lucide="search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #a78bfa; width: 16px; height: 16px; pointer-events: none;"></i>
+                    <input type="text" id="custom-audit-ticker-input" placeholder="Enter NSE ticker symbol (e.g. TCS, INFY, WIPRO)" autocomplete="off" autocapitalize="characters" style="width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(139,92,246,0.35); border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; padding: 13px 14px 13px 42px; outline: none; transition: all 0.2s; box-sizing: border-box; letter-spacing: 0.5px; font-family: inherit;">
+                    <!-- Autocomplete Dropdown -->
+                    <div id="custom-audit-autocomplete" style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: rgba(15, 17, 35, 0.97); border: 1px solid rgba(139,92,246,0.3); border-radius: 10px; z-index: 200; display: none; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
+                    </div>
+                </div>
+                <button id="btn-run-custom-audit" style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 700; padding: 0 24px; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap; box-shadow: 0 4px 15px rgba(124,58,237,0.35); transition: all 0.2s; min-width: 140px; justify-content: center;">
+                    <i data-lucide="zap" style="width: 15px; height: 15px;"></i>
+                    <span>Run Audit</span>
+                </button>
+            </div>
+
+            <!-- Audit Result Area -->
+            <div id="custom-audit-result-area" style="display: none;">
+
+                <!-- Verdict Banner -->
+                <div id="custom-audit-verdict-banner" style="border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px;">
+                </div>
+
+                <!-- Two-Column Layout: Score Breakdown + Audit Flags -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+
+                    <!-- Score Breakdown -->
+                    <div style="background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.18); border-radius: 12px; padding: 18px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="calculator" style="width: 13px; height: 13px;"></i>
+                            DVSMS Score Breakdown
+                        </div>
+                        <div id="custom-audit-score-breakdown" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Total DVSMS Score</span>
+                            <span id="custom-audit-total-score" style="font-size: 26px; font-weight: 900; color: #a78bfa;"></span>
+                        </div>
+                    </div>
+
+                    <!-- Audit Flags -->
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="shield-alert" style="width: 13px; height: 13px;"></i>
+                            Audit Checklist
+                        </div>
+                        <div id="custom-audit-flags" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+                </div>
+
+                <!-- Key Metrics Row -->
+                <div id="custom-audit-metrics-row" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px;"></div>
+
+                <!-- Forecasts & Press Releases -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <!-- Forecasts -->
+                    <div style="background: rgba(96,165,250,0.05); border: 1px solid rgba(96,165,250,0.15); border-radius: 12px; padding: 18px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="line-chart" style="width: 13px; height: 13px;"></i>
+                            3-Year Revenue Forecasts
+                        </div>
+                        <div id="custom-audit-forecasts" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    </div>
+                    <!-- Press Releases -->
+                    <div style="background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.15); border-radius: 12px; padding: 18px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #34d399; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="newspaper" style="width: 13px; height: 13px;"></i>
+                            Corporate Announcements
+                        </div>
+                        <div id="custom-audit-press" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div id="custom-audit-actions" style="display: flex; gap: 12px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05);">
+                    <button id="btn-audit-add-history" style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 700; padding: 11px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(124,58,237,0.3);">
+                        <i data-lucide="bookmark-plus" style="width: 14px; height: 14px;"></i>
+                        <span>Save to History</span>
+                    </button>
+                    <button id="btn-audit-remove-history" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; color: #f87171; font-size: 13px; font-weight: 700; padding: 11px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                        <i data-lucide="bookmark-x" style="width: 14px; height: 14px;"></i>
+                        <span>Remove from History</span>
+                    </button>
+                    <button id="btn-audit-open-analyzer" style="background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.25); border-radius: 10px; color: #60a5fa; font-size: 13px; font-weight: 700; padding: 11px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                        <i data-lucide="bar-chart-3" style="width: 14px; height: 14px;"></i>
+                        <span>Full Analysis</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Placeholder before search -->
+            <div id="custom-audit-placeholder" style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                <i data-lucide="search" style="width: 52px; height: 52px; color: #a78bfa; opacity: 0.4; margin-bottom: 16px;"></i>
+                <p style="font-size: 15px; font-weight: 600; margin: 0 0 8px 0; color: rgba(255,255,255,0.5);">Enter a stock ticker above</p>
+                <p style="font-size: 12px; margin: 0; line-height: 1.6; max-width: 400px; margin: 0 auto;">Run the DVSMS (Deep Value & Solvency Multi-Factor Score) audit on any NSE stock. Results include verdict, score breakdown, and 3-year forecasts.</p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="custom-audit-loading" style="display: none; text-align: center; padding: 50px 20px;">
+                <i data-lucide="cpu" style="width: 48px; height: 48px; color: #a78bfa; animation: spin 2s linear infinite; margin-bottom: 16px;"></i>
+                <p style="font-size: 14px; font-weight: 600; color: #a78bfa; margin: 0;">Running DVSMS Solvency Audit...</p>
+                <p style="font-size: 12px; color: var(--text-secondary); margin: 6px 0 0 0;">Fetching fundamentals & scoring metrics</p>
+            </div>
+
+        </div>
     </div>
 
     <!-- DEEP RESEARCH RECOMMENDATIONS MODAL -->

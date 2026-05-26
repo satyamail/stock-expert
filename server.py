@@ -887,6 +887,143 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"success": f"Removed {ticker} from deep solvency history."}).encode("utf-8"))
             return
 
+        # --- CUSTOM SINGLE STOCK SOLVENCY AUDIT ---
+        elif path == "/api/research/analyze":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+
+            ticker = body.get("ticker", "").upper().strip()
+            if not ticker:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Ticker is required."}).encode("utf-8"))
+                return
+
+            # Check in-memory registry first
+            stock_data = ALL_CRAWLED_STOCKS.get(ticker)
+
+            # If not in registry, try to fetch live from screener
+            if not stock_data:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("SELECT email, password FROM screener_config LIMIT 1")
+                row = cursor.fetchone()
+                conn.close()
+                if row:
+                    screener.email = row[0]
+                    screener.password = row[1]
+                    screener.login()
+                stock_data = screener.fetch_company_details(ticker)
+
+            if not stock_data:
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Could not retrieve data for '{ticker}'. Verify ticker symbol."}).encode("utf-8"))
+                return
+
+            # Register in crawled stocks cache
+            ALL_CRAWLED_STOCKS[ticker] = stock_data
+
+            # Run DVSMS scoring
+            screener_engine = DeepResearchScreener(ALL_CRAWLED_STOCKS)
+            de = stock_data.get("de", 0.0)
+            roe = stock_data.get("roe", 0.0)
+            price = stock_data.get("price", 10.0)
+            fair = stock_data.get("fairValue", 12.0)
+            disc = ((fair - price) / fair) * 100 if fair > 0 else 0.0
+
+            solvency_score = max(0.0, (1.0 - de) * 30.0)
+            efficiency_score = roe * 0.35
+            discount_reward = max(-10.0, disc * 0.25)
+            dvsms_score = round(solvency_score + efficiency_score + discount_reward, 2)
+
+            forecast = screener_engine.generate_detailed_forecasting(stock_data)
+            press_releases = screener_engine.generate_press_releases(stock_data)
+
+            # Build audit verdict
+            flags = []
+            if de > 0.35:
+                flags.append({"type": "warn", "msg": f"High leverage (D/E={de:.2f}). Exceeds low-debt threshold of 0.35."})
+            else:
+                flags.append({"type": "pass", "msg": f"Low debt (D/E={de:.2f}). Strong solvency profile."})
+
+            if roe < 12.0:
+                flags.append({"type": "warn", "msg": f"ROE={roe:.1f}% is below minimum 12% efficiency bar."})
+            else:
+                flags.append({"type": "pass", "msg": f"Strong ROE={roe:.1f}% — above 12% efficiency threshold."})
+
+            if disc > 10:
+                flags.append({"type": "pass", "msg": f"Trading {disc:.1f}% below fair value — excellent margin of safety."})
+            elif disc > 0:
+                flags.append({"type": "neutral", "msg": f"Minor {disc:.1f}% discount to fair value."})
+            else:
+                flags.append({"type": "warn", "msg": f"Trading at a premium ({abs(disc):.1f}% above fair value)."})
+
+            eligible = de <= 0.35 and roe >= 12.0
+            verdict = "RECOMMENDED" if eligible and dvsms_score >= 20 else ("WATCH" if eligible else "AVOID")
+
+            result = dict(stock_data)
+            result["dvsms_score"] = dvsms_score
+            result["forecasts"] = forecast
+            result["press_releases"] = press_releases
+            result["audit_flags"] = flags
+            result["verdict"] = verdict
+            result["score_breakdown"] = {
+                "solvency": round(solvency_score, 2),
+                "efficiency": round(efficiency_score, 2),
+                "discount": round(discount_reward, 2),
+                "total": dvsms_score
+            }
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"result": result}).encode("utf-8"))
+            return
+
+        # --- ADD STOCK TO RESEARCH HISTORY ---
+        elif path == "/api/research/suggestions/add":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+
+            ticker = body.get("ticker", "").upper().strip()
+            if not ticker:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Ticker is required."}).encode("utf-8"))
+                return
+
+            stock_data = ALL_CRAWLED_STOCKS.get(ticker)
+            name = stock_data.get("name", ticker) if stock_data else ticker
+
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO suggested_picks_history (user_id, ticker, name, timestamp)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            """, (user_id, ticker, name))
+            conn.commit()
+            conn.close()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": f"{ticker} added to Deep Research history."}).encode("utf-8"))
+            return
+
         # --- PORTFOLIO TRANSACTION EXECUTION ---
         elif path == "/api/portfolio/trade":
             user_id = verify_session(self.headers)

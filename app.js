@@ -155,6 +155,7 @@ function loadWorkspace(username) {
     setupDeepResearchButton();
     setupPortfolioRefreshButton();
     setupScreenerConfigListener();
+    setupCustomAuditModal();
     switchTab("dashboard");
     
     // Initial data load
@@ -649,6 +650,314 @@ window.openDeepResearchModal = function() {
     const modal = document.getElementById("deep-research-modal");
     if (modal) modal.classList.remove("hidden");
 };
+
+// ─────────────────────────────────────────────────────────
+//  CUSTOM SOLVENCY AUDIT  —  Search, Render & History Toggle
+// ─────────────────────────────────────────────────────────
+
+let currentAuditTicker = null; // Tracks the ticker shown in the audit modal
+
+window.openCustomAuditModal = function() {
+    const modal = document.getElementById("custom-audit-modal");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    // Reset to placeholder state
+    const input = document.getElementById("custom-audit-ticker-input");
+    if (input) input.value = "";
+    _auditShowState("placeholder");
+    lucide.createIcons();
+};
+
+window.closeCustomAuditModal = function() {
+    const modal = document.getElementById("custom-audit-modal");
+    if (modal) modal.classList.add("hidden");
+    currentAuditTicker = null;
+};
+
+function _auditShowState(state) {
+    // state: "placeholder" | "loading" | "result"
+    const placeholder = document.getElementById("custom-audit-placeholder");
+    const loading = document.getElementById("custom-audit-loading");
+    const result = document.getElementById("custom-audit-result-area");
+    if (placeholder) placeholder.style.display = state === "placeholder" ? "block" : "none";
+    if (loading) loading.style.display = state === "loading" ? "block" : "none";
+    if (result) result.style.display = state === "result" ? "block" : "none";
+}
+
+function setupCustomAuditModal() {
+    const closeBtn = document.getElementById("btn-close-custom-audit");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", window.closeCustomAuditModal);
+    }
+
+    const overlay = document.getElementById("custom-audit-modal");
+    if (overlay) {
+        overlay.addEventListener("click", function(e) {
+            if (e.target === overlay) window.closeCustomAuditModal();
+        });
+    }
+
+    const runBtn = document.getElementById("btn-run-custom-audit");
+    if (runBtn) {
+        runBtn.addEventListener("click", () => {
+            const input = document.getElementById("custom-audit-ticker-input");
+            const ticker = input ? input.value.trim().toUpperCase() : "";
+            if (!ticker) { showToast("Please enter a ticker symbol.", "error"); return; }
+            runCustomAudit(ticker);
+        });
+    }
+
+    const input = document.getElementById("custom-audit-ticker-input");
+    if (input) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                const ticker = input.value.trim().toUpperCase();
+                if (!ticker) { showToast("Please enter a ticker symbol.", "error"); return; }
+                runCustomAudit(ticker);
+            }
+        });
+        input.addEventListener("input", () => {
+            const q = input.value.trim();
+            if (q.length >= 2) {
+                _auditFetchAutocomplete(q);
+            } else {
+                _auditHideAutocomplete();
+            }
+        });
+    }
+
+    const bannerBtn = document.getElementById("btn-banner-custom-audit");
+    if (bannerBtn) {
+        bannerBtn.addEventListener("click", () => {
+            if (!getToken()) { showToast("Please log in first.", "error"); return; }
+            window.openCustomAuditModal();
+        });
+    }
+
+    // Add/Remove history buttons
+    const addBtn = document.getElementById("btn-audit-add-history");
+    if (addBtn) {
+        addBtn.addEventListener("click", async () => {
+            if (!currentAuditTicker) return;
+            try {
+                const res = await fetch("/api/research/suggestions/add", {
+                    method: "POST",
+                    headers: defAuthHeaders(),
+                    body: JSON.stringify({ ticker: currentAuditTicker })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.success || `${currentAuditTicker} saved to history.`, "success");
+                    await syncResearchSuggestions();
+                } else {
+                    showToast(data.error || "Failed to save.", "error");
+                }
+            } catch (e) { showToast("Connection error.", "error"); }
+        });
+    }
+
+    const removeBtn = document.getElementById("btn-audit-remove-history");
+    if (removeBtn) {
+        removeBtn.addEventListener("click", async () => {
+            if (!currentAuditTicker) return;
+            await window.removeResearchSuggestion(currentAuditTicker);
+        });
+    }
+
+    const analyzerBtn = document.getElementById("btn-audit-open-analyzer");
+    if (analyzerBtn) {
+        analyzerBtn.addEventListener("click", () => {
+            if (!currentAuditTicker) return;
+            window.closeCustomAuditModal();
+            loadAnalyzerForTicker(currentAuditTicker);
+        });
+    }
+}
+
+async function _auditFetchAutocomplete(q) {
+    try {
+        const res = await fetch(`/api/stocks/autocomplete?q=${encodeURIComponent(q)}`, { headers: defAuthHeaders() });
+        const data = await res.json();
+        const suggestions = data.suggestions || [];
+        _auditRenderAutocomplete(suggestions);
+    } catch (e) { _auditHideAutocomplete(); }
+}
+
+function _auditRenderAutocomplete(suggestions) {
+    const dropdown = document.getElementById("custom-audit-autocomplete");
+    const input = document.getElementById("custom-audit-ticker-input");
+    if (!dropdown) return;
+    if (!suggestions.length) { _auditHideAutocomplete(); return; }
+    dropdown.innerHTML = suggestions.slice(0, 7).map(s => `
+        <div onclick="document.getElementById('custom-audit-ticker-input').value='${s.ticker||s}'; _auditHideAutocomplete(); runCustomAudit('${s.ticker||s}');" 
+             style="padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;"
+             onmouseover="this.style.background='rgba(139,92,246,0.12)'" onmouseout="this.style.background='transparent'">
+            <span style="font-size: 13px; font-weight: 700; color: #a78bfa;">${s.ticker || s}</span>
+            ${s.name ? `<span style="font-size: 11px; color: var(--text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.name}</span>` : ''}
+        </div>
+    `).join('');
+    dropdown.style.display = "block";
+}
+
+window._auditHideAutocomplete = function() {
+    const dropdown = document.getElementById("custom-audit-autocomplete");
+    if (dropdown) dropdown.style.display = "none";
+};
+
+window.runCustomAudit = async function(ticker) {
+    if (!getToken()) { showToast("Please log in first.", "error"); return; }
+    _auditHideAutocomplete();
+    _auditShowState("loading");
+
+    const runBtn = document.getElementById("btn-run-custom-audit");
+    if (runBtn) { runBtn.disabled = true; runBtn.style.opacity = "0.6"; }
+
+    try {
+        const res = await fetch("/api/research/analyze", {
+            method: "POST",
+            headers: defAuthHeaders(),
+            body: JSON.stringify({ ticker })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            _auditShowState("placeholder");
+            showToast(data.error || `Could not analyze ${ticker}.`, "error");
+            return;
+        }
+
+        currentAuditTicker = ticker;
+        _renderAuditResult(data.result);
+        _auditShowState("result");
+        lucide.createIcons();
+
+    } catch (e) {
+        console.error("Custom audit error:", e);
+        _auditShowState("placeholder");
+        showToast("Error connecting to server.", "error");
+    } finally {
+        if (runBtn) { runBtn.disabled = false; runBtn.style.opacity = "1"; }
+    }
+};
+
+function _renderAuditResult(r) {
+    // --- Verdict Banner ---
+    const banner = document.getElementById("custom-audit-verdict-banner");
+    if (banner) {
+        const verdictColors = {
+            RECOMMENDED: { bg: "rgba(52,211,153,0.1)", border: "rgba(52,211,153,0.3)", icon: "check-circle-2", color: "#34d399", label: "✅ RECOMMENDED" },
+            WATCH:       { bg: "rgba(251,191,36,0.1)",  border: "rgba(251,191,36,0.3)",  icon: "eye",           color: "#fbbf24", label: "👁 WATCH" },
+            AVOID:       { bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.3)",   icon: "x-circle",      color: "#f87171", label: "⛔ AVOID" }
+        };
+        const vc = verdictColors[r.verdict] || verdictColors.WATCH;
+        banner.style.background = vc.bg;
+        banner.style.border = `1px solid ${vc.border}`;
+        banner.innerHTML = `
+            <i data-lucide="${vc.icon}" style="width: 36px; height: 36px; color: ${vc.color}; flex-shrink: 0;"></i>
+            <div style="flex: 1;">
+                <div style="font-size: 18px; font-weight: 900; color: ${vc.color};">${vc.label}</div>
+                <div style="font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 3px;">
+                    <strong style="color: #fff;">${r.ticker}</strong> — ${r.name}
+                    &nbsp;|&nbsp; ₹${r.price ? r.price.toLocaleString('en-IN') : '--'}
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.6px;">DVSMS Score</div>
+                <div style="font-size: 32px; font-weight: 900; color: ${vc.color}; line-height: 1;">${r.dvsms_score}</div>
+            </div>
+        `;
+    }
+
+    // --- Score Breakdown ---
+    const breakdown = document.getElementById("custom-audit-score-breakdown");
+    const total = document.getElementById("custom-audit-total-score");
+    if (breakdown && r.score_breakdown) {
+        const bd = r.score_breakdown;
+        const rows = [
+            { label: "Solvency (1 - D/E) × 30", val: bd.solvency, color: "#a78bfa" },
+            { label: "Efficiency (ROE × 0.35)", val: bd.efficiency, color: "#60a5fa" },
+            { label: "Discount (Margin × 0.25)", val: bd.discount, color: bd.discount >= 0 ? "#34d399" : "#f87171" }
+        ];
+        breakdown.innerHTML = rows.map(row => `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 11px; color: var(--text-secondary);">${row.label}</span>
+                <span style="font-size: 13px; font-weight: 700; color: ${row.color};">${row.val >= 0 ? '+' : ''}${row.val}</span>
+            </div>
+        `).join('');
+        if (total) total.textContent = bd.total;
+    }
+
+    // --- Audit Flags ---
+    const flagsEl = document.getElementById("custom-audit-flags");
+    if (flagsEl && r.audit_flags) {
+        const flagStyles = {
+            pass:    { bg: "rgba(52,211,153,0.08)", border: "rgba(52,211,153,0.2)", icon: "check-circle", color: "#34d399" },
+            warn:    { bg: "rgba(239,68,68,0.08)",  border: "rgba(239,68,68,0.2)",  icon: "alert-circle", color: "#f87171" },
+            neutral: { bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.2)", icon: "info",         color: "#fbbf24" }
+        };
+        flagsEl.innerHTML = r.audit_flags.map(f => {
+            const fs = flagStyles[f.type] || flagStyles.neutral;
+            return `
+                <div style="display: flex; align-items: flex-start; gap: 10px; background: ${fs.bg}; border: 1px solid ${fs.border}; border-radius: 8px; padding: 10px 12px;">
+                    <i data-lucide="${fs.icon}" style="width: 14px; height: 14px; color: ${fs.color}; margin-top: 1px; flex-shrink: 0;"></i>
+                    <span style="font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.4;">${f.msg}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // --- Key Metrics Row ---
+    const metricsRow = document.getElementById("custom-audit-metrics-row");
+    if (metricsRow) {
+        const metrics = [
+            { label: "P/E Ratio", val: r.pe ? r.pe.toFixed(1) : "--", color: "#fff" },
+            { label: "D/E Ratio", val: r.de !== undefined ? r.de.toFixed(2) : "--", color: r.de <= 0.35 ? "#34d399" : "#f87171" },
+            { label: "ROE", val: r.roe !== undefined ? r.roe.toFixed(1) + "%" : "--", color: r.roe >= 12 ? "#60a5fa" : "#f87171" },
+            { label: "Div Yield", val: r.divYield !== undefined ? r.divYield.toFixed(2) + "%" : "--", color: "#fbbf24" },
+            { label: "Health Score", val: r.healthScore || "--", color: r.healthScore >= 80 ? "#34d399" : (r.healthScore >= 60 ? "#fbbf24" : "#f87171") }
+        ];
+        metricsRow.innerHTML = metrics.map(m => `
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px; text-align: center;">
+                <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;">${m.label}</div>
+                <div style="font-size: 18px; font-weight: 800; color: ${m.color};">${m.val}</div>
+            </div>
+        `).join('');
+    }
+
+    // --- Forecasts ---
+    const forecastsEl = document.getElementById("custom-audit-forecasts");
+    if (forecastsEl && r.forecasts) {
+        const fc = r.forecasts;
+        forecastsEl.innerHTML = `
+            <div style="font-size: 11px; color: #60a5fa; font-weight: 600; margin-bottom: 4px;">${fc.cagr || ''}</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                ${[1,2,3].map(y => `
+                    <div style="background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.15); border-radius: 8px; padding: 10px; text-align: center;">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">Year ${y}</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #60a5fa;">${fc['rev_y'+y] || '--'} Cr</div>
+                        <div style="font-size: 11px; color: #34d399;">${fc['prof_y'+y] || '--'} Cr</div>
+                    </div>
+                `).join('')}
+            </div>
+            <div style="font-size: 10px; color: var(--text-secondary); margin-top: 8px; line-height: 1.5;">${fc.capex || ''}</div>
+        `;
+    }
+
+    // --- Press Releases ---
+    const pressEl = document.getElementById("custom-audit-press");
+    if (pressEl && r.press_releases) {
+        pressEl.innerHTML = r.press_releases.map(pr => `
+            <div style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px;">
+                    <span style="font-size: 12px; font-weight: 700; color: #fff; line-height: 1.3;">${pr.headline}</span>
+                    <span style="font-size: 10px; color: var(--text-secondary); white-space: nowrap; flex-shrink: 0;">${pr.date}</span>
+                </div>
+                <p style="font-size: 11px; color: var(--text-secondary); margin: 0; line-height: 1.5;">${pr.summary}</p>
+            </div>
+        `).join('');
+    }
+}
+
 
 async function syncBackendData() {
     if (!getToken()) return;
