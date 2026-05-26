@@ -12,7 +12,8 @@ import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # Import Screener Adapter
-from screener_adapter import ScreenerAdapter
+from screener_adapter import ScreenerAdapter, add_premium_metrics
+from deep_research_screener import DeepResearchScreener
 
 DB_FILE = "stock_expert.db"
 PORT = 8000
@@ -21,18 +22,21 @@ screener = ScreenerAdapter()
 
 # --- RESILIENT FUNDAMENTAL BASE DATABASE ---
 DEFAULT_NIFTY_PICKS = [
-    {"ticker": "RELIANCE", "name": "Reliance Industries Ltd.", "price": 2955.50, "pe": 26.8, "roe": 9.4, "de": 0.38, "divYield": 0.34, "fairValue": 3200.00, "healthScore": 85},
-    {"ticker": "TCS", "name": "Tata Consultancy Services Ltd.", "price": 3845.00, "pe": 28.2, "roe": 48.2, "de": 0.05, "divYield": 2.41, "fairValue": 4100.00, "healthScore": 92},
-    {"ticker": "HDFCBANK", "name": "HDFC Bank Ltd.", "price": 1512.40, "pe": 16.5, "roe": 16.8, "de": 0.85, "divYield": 1.29, "fairValue": 1780.00, "healthScore": 86},
-    {"ticker": "INFY", "name": "Infosys Ltd.", "price": 1420.00, "pe": 24.1, "roe": 31.8, "de": 0.12, "divYield": 3.24, "fairValue": 1650.00, "healthScore": 87},
-    {"ticker": "ICICIBANK", "name": "ICICI Bank Ltd.", "price": 1120.00, "pe": 18.2, "roe": 17.5, "de": 0.78, "divYield": 0.89, "fairValue": 1280.00, "healthScore": 88},
-    {"ticker": "TATAMOTORS", "name": "Tata Motors Ltd.", "price": 955.00, "pe": 15.4, "roe": 22.1, "de": 0.65, "divYield": 0.63, "fairValue": 1100.00, "healthScore": 89},
-    {"ticker": "SBIN", "name": "State Bank of India", "price": 825.00, "pe": 9.5, "roe": 18.2, "de": 0.95, "divYield": 1.66, "fairValue": 980.00, "healthScore": 91},
-    {"ticker": "BHARTIARTL", "name": "Bharti Airtel Ltd.", "price": 1390.00, "pe": 54.2, "roe": 12.1, "de": 0.98, "divYield": 0.28, "fairValue": 1250.00, "healthScore": 72}
+    add_premium_metrics({"ticker": "RELIANCE", "name": "Reliance Industries Ltd.", "price": 2955.50, "pe": 26.8, "roe": 9.4, "de": 0.38, "divYield": 0.34, "fairValue": 3200.00, "healthScore": 85, "momoType": "cooling", "rsi": 52}),
+    add_premium_metrics({"ticker": "TCS", "name": "Tata Consultancy Services Ltd.", "price": 3845.00, "pe": 28.2, "roe": 48.2, "de": 0.05, "divYield": 2.41, "fairValue": 4100.00, "healthScore": 92, "momoType": "high", "rsi": 64}),
+    add_premium_metrics({"ticker": "HDFCBANK", "name": "HDFC Bank Ltd.", "price": 1512.40, "pe": 16.5, "roe": 16.8, "de": 0.85, "divYield": 1.29, "fairValue": 1780.00, "healthScore": 86, "momoType": "cooling", "rsi": 45}),
+    add_premium_metrics({"ticker": "INFY", "name": "Infosys Ltd.", "price": 1420.00, "pe": 24.1, "roe": 31.8, "de": 0.12, "divYield": 3.24, "fairValue": 1650.00, "healthScore": 87, "momoType": "high", "rsi": 58}),
+    add_premium_metrics({"ticker": "ICICIBANK", "name": "ICICI Bank Ltd.", "price": 1120.00, "pe": 18.2, "roe": 17.5, "de": 0.78, "divYield": 0.89, "fairValue": 1280.00, "healthScore": 88, "momoType": "high", "rsi": 60}),
+    add_premium_metrics({"ticker": "TATAMOTORS", "name": "Tata Motors Ltd.", "price": 955.00, "pe": 15.4, "roe": 22.1, "de": 0.65, "divYield": 0.63, "fairValue": 1100.00, "healthScore": 89, "momoType": "high", "rsi": 62}),
+    add_premium_metrics({"ticker": "SBIN", "name": "State Bank of India", "price": 825.00, "pe": 9.5, "roe": 18.2, "de": 0.95, "divYield": 1.66, "fairValue": 980.00, "healthScore": 91, "momoType": "high", "rsi": 61}),
+    add_premium_metrics({"ticker": "BHARTIARTL", "name": "Bharti Airtel Ltd.", "price": 1390.00, "pe": 54.2, "roe": 12.1, "de": 0.98, "divYield": 0.28, "fairValue": 1250.00, "healthScore": 72, "momoType": "cooling", "rsi": 42})
 ]
 
 # Holds current scanned stocks from Screener.in, defaults to pre-built resilient list
 LIVE_MARKET_PICK = list(DEFAULT_NIFTY_PICKS)
+
+# Registry of all crawled/scraped stocks in memory to enable search history and watchlist metrics lookup
+ALL_CRAWLED_STOCKS = {s["ticker"]: s for s in DEFAULT_NIFTY_PICKS}
 
 # --- DATABASE SETUP & MIGRATION ---
 def init_db():
@@ -105,6 +109,41 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(id)
     )
     """)
+
+    # Persistent search history
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS search_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        ticker TEXT NOT NULL,
+        name TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    """)
+
+    # User watchlist for screener
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS screener_watchlist (
+        user_id INTEGER NOT NULL,
+        ticker TEXT NOT NULL,
+        PRIMARY KEY (user_id, ticker),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    """)
+
+    # Deep Research suggested stocks history
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS suggested_picks_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        ticker TEXT NOT NULL,
+        name TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        UNIQUE(user_id, ticker)
+    )
+    """)
     
     conn.commit()
     conn.close()
@@ -165,9 +204,13 @@ def run_screener_scan():
     
     if scanned_stocks and len(scanned_stocks) > 0:
         LIVE_MARKET_PICK = scanned_stocks
+        for s in scanned_stocks:
+            ALL_CRAWLED_STOCKS[s["ticker"]] = s
         print(f"[Scanner] Scanned {len(LIVE_MARKET_PICK)} Nifty stocks matching criteria from Screener.in successfully.")
     else:
         LIVE_MARKET_PICK = list(DEFAULT_NIFTY_PICKS)
+        for s in DEFAULT_NIFTY_PICKS:
+            ALL_CRAWLED_STOCKS[s["ticker"]] = s
         print("[Scanner] Screener.in returned no results or was throttled. Preserving resilient Nifty fundamental database.")
 
 def run_247_scanner():
@@ -311,10 +354,88 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             return
             
         elif path == "/api/stocks":
+            user_id = verify_session(self.headers)
+            
+            watchlist_tickers = []
+            history_entries = []
+            
+            if user_id:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                
+                # Fetch custom watchlist
+                cursor.execute("SELECT ticker FROM screener_watchlist WHERE user_id = ?", (user_id,))
+                watchlist_tickers = [row[0] for row in cursor.fetchall()]
+                
+                # Fetch search history
+                cursor.execute("SELECT ticker, name, timestamp FROM search_history WHERE user_id = ? ORDER BY timestamp DESC LIMIT 30", (user_id,))
+                history_entries = [{"ticker": row[0], "name": row[1], "timestamp": row[2]} for row in cursor.fetchall()]
+                
+                conn.close()
+                
+            stocks_pool = list(LIVE_MARKET_PICK)
+            existing_tickers = {s["ticker"] for s in stocks_pool}
+            
+            for ticker in watchlist_tickers:
+                if ticker not in existing_tickers and ticker in ALL_CRAWLED_STOCKS:
+                    stocks_pool.append(ALL_CRAWLED_STOCKS[ticker])
+                    
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"stocks": LIVE_MARKET_PICK}).encode("utf-8"))
+            self.wfile.write(json.dumps({
+                "stocks": stocks_pool,
+                "watchlist": watchlist_tickers,
+                "history": history_entries
+            }).encode("utf-8"))
+            return
+
+        elif path == "/api/research/suggestions":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+                
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("SELECT ticker, timestamp FROM suggested_picks_history WHERE user_id = ? ORDER BY timestamp DESC", (user_id,))
+            rows = cursor.fetchall()
+            conn.close()
+            
+            suggestions = []
+            screener_engine = DeepResearchScreener(ALL_CRAWLED_STOCKS)
+            
+            for ticker, timestamp in rows:
+                stock_data = ALL_CRAWLED_STOCKS.get(ticker)
+                if stock_data:
+                    forecast = screener_engine.generate_detailed_forecasting(stock_data)
+                    press_releases = screener_engine.generate_press_releases(stock_data)
+                    
+                    de = stock_data.get("de", 0.0)
+                    roe = stock_data.get("roe", 0.0)
+                    price = stock_data.get("price", 10.0)
+                    fair = stock_data.get("fairValue", 12.0)
+                    disc = ((fair - price) / fair) * 100 if fair > 0 else 0.0
+                    
+                    solvency_score = max(0.0, (1.0 - de) * 30.0)
+                    efficiency_score = roe * 0.35
+                    discount_reward = max(-10.0, disc * 0.25)
+                    dvsms_score = round(solvency_score + efficiency_score + discount_reward, 2)
+                    
+                    enriched = dict(stock_data)
+                    enriched["timestamp"] = timestamp
+                    enriched["forecasts"] = forecast
+                    enriched["press_releases"] = press_releases
+                    enriched["dvsms_score"] = dvsms_score
+                    suggestions.append(enriched)
+                    
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"suggestions": suggestions}).encode("utf-8"))
             return
 
         elif path == "/api/stocks/search":
@@ -329,32 +450,36 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 return
                 
             ticker = ticker_list[0].upper().strip()
+            user_id = verify_session(self.headers)
             
-            # Check memory cache
-            existing = next((s for s in LIVE_MARKET_PICK if s["ticker"] == ticker), None)
-            if existing:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"stock": existing}).encode("utf-8"))
-                return
+            scraped_stock = ALL_CRAWLED_STOCKS.get(ticker)
+            
+            if not scraped_stock:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("SELECT email, password FROM screener_config LIMIT 1")
+                row = cursor.fetchone()
+                conn.close()
                 
-            # Dynamic scrape
-            conn = sqlite3.connect(DB_FILE)
-            cursor = conn.cursor()
-            cursor.execute("SELECT email, password FROM screener_config LIMIT 1")
-            row = cursor.fetchone()
-            conn.close()
-            
-            if row:
-                screener.email = row[0]
-                screener.password = row[1]
-                screener.login()
+                if row:
+                    screener.email = row[0]
+                    screener.password = row[1]
+                    screener.login()
+                    
+                scraped_stock = screener.fetch_company_details(ticker)
                 
-            scraped_stock = screener.fetch_company_details(ticker)
-            
             if scraped_stock:
-                LIVE_MARKET_PICK.append(scraped_stock)
+                ALL_CRAWLED_STOCKS[ticker] = scraped_stock
+                
+                if user_id:
+                    conn = sqlite3.connect(DB_FILE)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT id FROM search_history WHERE user_id = ? AND ticker = ? LIMIT 1", (user_id, ticker))
+                    existing_hist = cursor.fetchone()
+                    if not existing_hist:
+                        cursor.execute("INSERT INTO search_history (user_id, ticker, name) VALUES (?, ?, ?)", (user_id, ticker, scraped_stock["name"]))
+                        conn.commit()
+                    conn.close()
                 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -367,6 +492,38 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": f"Failed to retrieve details for ticker '{ticker}' from Screener.in. Verify symbol."}).encode("utf-8"))
                 return
+
+        elif path == "/api/stocks/autocomplete":
+            query_params = urllib.parse.parse_qs(url.query)
+            q_list = query_params.get("q", [])
+            
+            if not q_list or not q_list[0].strip():
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"suggestions": []}).encode("utf-8"))
+                return
+                
+            q = q_list[0].strip()
+            
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("SELECT email, password FROM screener_config LIMIT 1")
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                screener.email = row[0]
+                screener.password = row[1]
+                screener.login()
+                
+            suggestions = screener.fetch_autocomplete_suggestions(q)
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"suggestions": suggestions}).encode("utf-8"))
+            return
 
         elif path == "/api/screener/config":
             user_id = verify_session(self.headers)
@@ -581,6 +738,153 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"success": f"Scanned NSE Market. Found {len(LIVE_MARKET_PICK)} matching stocks."}).encode("utf-8"))
+            return
+
+        # --- REMOVE FROM SEARCH HISTORY ENDPOINT ---
+        elif path == "/api/stocks/history/remove":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+                
+            ticker = body.get("ticker", "").upper().strip()
+            
+            if not ticker:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Ticker is required."}).encode("utf-8"))
+                return
+                
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM search_history WHERE user_id = ? AND ticker = ?", (user_id, ticker))
+            conn.commit()
+            conn.close()
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": f"Removed {ticker} from search history."}).encode("utf-8"))
+            return
+
+        # --- WATCHLIST TOGGLE ENDPOINT ---
+        elif path == "/api/stocks/watchlist":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+                
+            ticker = body.get("ticker", "").upper().strip()
+            action = body.get("action", "ADD").upper()
+            
+            if not ticker:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Ticker is required."}).encode("utf-8"))
+                return
+                
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            
+            if action == "ADD":
+                cursor.execute("INSERT OR IGNORE INTO screener_watchlist (user_id, ticker) VALUES (?, ?)", (user_id, ticker))
+                success_msg = f"Added {ticker} to screener watchlist!"
+            else:
+                cursor.execute("DELETE FROM screener_watchlist WHERE user_id = ? AND ticker = ?", (user_id, ticker))
+                success_msg = f"Removed {ticker} from screener watchlist."
+                
+            conn.commit()
+            conn.close()
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": success_msg}).encode("utf-8"))
+            return
+
+        # --- TRIGGER DEEP SOLVENCY RESEARCH ---
+        elif path == "/api/research/trigger":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+                
+            screener_engine = DeepResearchScreener(ALL_CRAWLED_STOCKS)
+            top_picks = screener_engine.run_analysis()
+            
+            if not top_picks:
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "No stocks matched the deep solvency criteria (ROE >= 12% and Debt/Equity <= 0.35). Please trigger live scan first to populate active market data."}).encode("utf-8"))
+                return
+                
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            
+            inserted_picks = []
+            for s in top_picks:
+                ticker = s["ticker"]
+                name = s["name"]
+                
+                # Persistent suggested stock history insert
+                cursor.execute("""
+                    INSERT OR REPLACE INTO suggested_picks_history (user_id, ticker, name, timestamp)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                """, (user_id, ticker, name))
+                inserted_picks.append(s)
+                
+            conn.commit()
+            conn.close()
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "success": f"Successfully recommended 2 solvency assets: {', '.join([p['ticker'] for p in inserted_picks])}",
+                "picks": inserted_picks
+            }).encode("utf-8"))
+            return
+
+        # --- REMOVE SUGGESTED STOCK FROM HISTORY ---
+        elif path == "/api/research/suggestions/remove":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+                
+            ticker = body.get("ticker", "").upper().strip()
+            if not ticker:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Ticker parameter is required."}).encode("utf-8"))
+                return
+                
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM suggested_picks_history WHERE user_id = ? AND ticker = ?", (user_id, ticker))
+            conn.commit()
+            conn.close()
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": f"Removed {ticker} from deep solvency history."}).encode("utf-8"))
             return
 
         # --- PORTFOLIO TRANSACTION EXECUTION ---

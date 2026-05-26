@@ -1322,3 +1322,228 @@ body {
     color: #ef4444 !important;
 }
 
+/* Deep Solvency Research Card styling */
+.deep-research-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.deep-research-card:hover {
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.6) !important;
+}
+.suggestion-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: all 0.3s var(--transition-smooth);
+}
+.suggestion-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(139, 92, 246, 0.3);
+    transform: translateY(-2px);
+}
+.suggestion-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, #8b5cf6, #3b82f6);
+}
+.suggestion-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.suggestion-title h4 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+}
+.suggestion-title p {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 4px 0 0 0;
+}
+.suggestion-score-badge {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    border-radius: 8px;
+    padding: 6px 10px;
+    text-align: center;
+}
+.suggestion-score-val {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 800;
+    color: #a78bfa;
+}
+.suggestion-score-lbl {
+    font-size: 8px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    margin-top: 1px;
+}
+.suggestion-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    padding: 12px;
+}
+.suggestion-metric-box {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.suggestion-metric-lbl {
+    font-size: 9px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+.suggestion-metric-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+}
+.suggestion-forecast-box {
+    background: rgba(139, 92, 246, 0.03);
+    border: 1px solid rgba(139, 92, 246, 0.1);
+    border-radius: 10px;
+    padding: 14px;
+}
+.suggestion-forecast-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #a78bfa;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.suggestion-forecast-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.suggestion-forecast-year {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.suggestion-forecast-lbl {
+    font-size: 9px;
+    color: var(--text-secondary);
+}
+.suggestion-forecast-val {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+}
+.suggestion-forecast-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    border-top: 1px solid rgba(255,255,255,0.03);
+    padding-top: 8px;
+    margin-top: 8px;
+}
+.suggestion-press-box {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 12px;
+}
+.suggestion-press-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.press-release-item {
+    font-size: 11px;
+    line-height: 1.4;
+    background: rgba(255, 255, 255, 0.01);
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    border-left: 2px solid rgba(255,255,255,0.1);
+}
+.press-release-item:last-child {
+    margin-bottom: 0;
+}
+.press-release-header {
+    display: flex;
+    justify-content: space-between;
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+.press-release-date {
+    color: var(--text-secondary);
+    font-size: 9px;
+}
+.press-release-summary {
+    color: var(--text-secondary);
+    font-size: 10px;
+}
+.history-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #fff;
+    transition: all 0.2s;
+}
+.history-tag:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+.history-tag-remove {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+.history-tag-remove:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* Responsive Deep Solvency content grid */
+@media (min-width: 1024px) {
+    .deep-research-content-grid {
+        display: grid;
+        grid-template-columns: 2.2fr 1fr;
+        gap: 24px;
+    }
+}
+@media (max-width: 1023px) {
+    .deep-research-content-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+}
+
