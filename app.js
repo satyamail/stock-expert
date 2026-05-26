@@ -1,6 +1,6 @@
-// StockExpert - Core Application Intelligence
+// StockExpert - Core Application Intelligence & Secure API Connector
 
-// --- STOCKS DATABASE ---
+// --- STATIC STOCKS DATABASE ---
 const stocksData = [
     {
         ticker: "AAPL",
@@ -8,21 +8,16 @@ const stocksData = [
         sector: "Technology",
         market: "US",
         currency: "$",
-        price: 189.84,
-        change: 1.45,
-        changePercent: 0.77,
         pe: 29.5,
         de: 1.42,
         roe: 154.3,
         fairValue: 205.00,
         healthScore: 88,
-        momoType: "high", // high, reversal, cooling
-        rsi: 62,
-        macd: "Bullish Crossover",
+        momoType: "high",
         description: "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. Its robust services ecosystem contributes to steady high-margin recurring cash flows.",
         quarterly: {
             quarters: ["Q2-25", "Q3-25", "Q4-25", "Q1-26"],
-            revenue: [90.75, 85.78, 94.93, 119.58], // in Billions
+            revenue: [90.75, 85.78, 94.93, 119.58],
             profit: [23.64, 21.45, 22.96, 33.92]
         },
         projections: {
@@ -43,17 +38,12 @@ const stocksData = [
         sector: "Semiconductors",
         market: "US",
         currency: "$",
-        price: 949.50,
-        change: 24.30,
-        changePercent: 2.63,
         pe: 72.8,
         de: 0.18,
         roe: 115.6,
         fairValue: 880.00,
         healthScore: 92,
         momoType: "high",
-        rsi: 74,
-        macd: "Accelerating Bullish",
         description: "NVIDIA Corporation designs graphics processing units (GPUs) for the gaming and professional markets, as well as system on a chip units for the mobile computing and automotive market. It is the absolute leader in AI computing hardware.",
         quarterly: {
             quarters: ["Q2-25", "Q3-25", "Q4-25", "Q1-26"],
@@ -78,17 +68,12 @@ const stocksData = [
         sector: "Technology",
         market: "US",
         currency: "$",
-        price: 430.32,
-        change: 4.12,
-        changePercent: 0.97,
         pe: 36.2,
         de: 0.44,
         roe: 38.5,
         fairValue: 450.00,
         healthScore: 89,
         momoType: "high",
-        rsi: 58,
-        macd: "Bullish Trend Confirmed",
         description: "Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide. Its Azure Cloud computing infrastructure paired with deep OpenAI integration drives multi-industry expansion.",
         quarterly: {
             quarters: ["Q2-25", "Q3-25", "Q4-25", "Q1-26"],
@@ -113,17 +98,12 @@ const stocksData = [
         sector: "Automotive",
         market: "US",
         currency: "$",
-        price: 179.24,
-        change: -3.40,
-        changePercent: -1.86,
         pe: 45.3,
         de: 0.08,
         roe: 22.8,
         fairValue: 195.00,
         healthScore: 74,
         momoType: "reversal",
-        rsi: 38,
-        macd: "Neutral to Bullish Cross",
         description: "Tesla, Inc. designs, develops, manufactures, sells, and leases fully electric vehicles, energy generation, and storage systems. It represents a major bet on autonomous driving and humanoid robotics.",
         quarterly: {
             quarters: ["Q2-25", "Q3-25", "Q4-25", "Q1-26"],
@@ -148,21 +128,16 @@ const stocksData = [
         sector: "Conglomerate",
         market: "IN",
         currency: "₹",
-        price: 2955.50,
-        change: 32.10,
-        changePercent: 1.10,
         pe: 26.8,
         de: 0.38,
         roe: 9.4,
         fairValue: 3200.00,
         healthScore: 85,
         momoType: "high",
-        rsi: 61,
-        macd: "Bullish Signal Active",
         description: "Reliance Industries Limited is India's largest private sector conglomerate, spanning hydrocarbon exploration and production, petroleum refining, petrochemicals, retail, and digital services (Jio).",
         quarterly: {
             quarters: ["Q2-25", "Q3-25", "Q4-25", "Q1-26"],
-            revenue: [2345, 2250, 2400, 2460], // in Billions INR
+            revenue: [2345, 2250, 2400, 2460],
             profit: [198, 172, 201, 212]
         },
         projections: {
@@ -183,17 +158,12 @@ const stocksData = [
         sector: "IT Services",
         market: "IN",
         currency: "₹",
-        price: 3845.00,
-        change: -12.40,
-        changePercent: -0.32,
         pe: 28.2,
         de: 0.05,
         roe: 48.2,
         fairValue: 4100.00,
         healthScore: 87,
         momoType: "cooling",
-        rsi: 48,
-        macd: "Slight Bearish Divergence",
         description: "Tata Consultancy Services is a global leader in IT services, consulting, and business solutions. Possessing one of the most resilient operating models in enterprise software globally.",
         quarterly: {
             quarters: ["Q2-25", "Q3-25", "Q4-25", "Q1-26"],
@@ -218,17 +188,12 @@ const stocksData = [
         sector: "Banking",
         market: "IN",
         currency: "₹",
-        price: 1512.40,
-        change: 18.50,
-        changePercent: 1.24,
         pe: 16.5,
         de: 0.85,
         roe: 16.8,
         fairValue: 1780.00,
         healthScore: 86,
         momoType: "reversal",
-        rsi: 54,
-        macd: "Bullish Reversal Confirmed",
         description: "HDFC Bank is the leading private sector bank in India. Post-merger with HDFC Ltd, it stands as a massive financial services titan with unmatched domestic retail credit distribution.",
         quarterly: {
             quarters: ["Q2-25", "Q3-25", "Q4-25", "Q1-26"],
@@ -249,21 +214,35 @@ const stocksData = [
     }
 ];
 
-// --- PORTFOLIO INITIAL STATE ---
+// --- PORTFOLIO DYNAMIC STATE ---
 let portfolio = {
-    cash: 15750.00,
-    holdings: [
-        { ticker: "AAPL", qty: 200, avgPrice: 175.20 },
-        { ticker: "NVDA", qty: 50, avgPrice: 820.00 },
-        { ticker: "HDFCBANK", qty: 150, avgPrice: 1440.00 }
-    ]
+    cash: 100000.00,
+    holdings: []
 };
+
+// --- SIMULATED REALTIME PRICES (Synchronized with Python scanner updates) ---
+let marketPrices = {};
+let marketRSIs = {};
 
 // --- GLOBAL VARIABLES & STATE ---
 let activeTab = "dashboard";
-let currentCharts = {}; // Track active chart objects to avoid canvas reuse errors
+let currentCharts = {};
+let authMode = "LOGIN"; // LOGIN or REGISTER
+let activePollingInterval = null;
 
-// --- HELPER FUNCTIONS ---
+// --- SECURE STORAGE ACCESS ---
+function getToken() {
+    return localStorage.getItem("auth_token");
+}
+
+function getAuthHeaders() {
+    return {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${getToken()}`
+    };
+}
+
+// --- CURRENCY & PERCENTAGE HELPERS ---
 function formatCurrency(val, currency = "$") {
     return `${currency}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -273,11 +252,237 @@ function calculateDiscount(fair, current) {
     return disc.toFixed(1);
 }
 
+// --- SYSTEM INITIALIZATION & WORKSPACE LOAD ---
+document.addEventListener("DOMContentLoaded", () => {
+    lucide.createIcons();
+    setupAuthListeners();
+    setupSearch();
+
+    const token = getToken();
+    const username = localStorage.getItem("username");
+    if (token && username) {
+        loadWorkspace(username);
+    } else {
+        document.getElementById("auth-overlay").classList.remove("hidden");
+    }
+});
+
+// --- AUTH HANDLERS & REGISTRATION flow ---
+function setupAuthListeners() {
+    const loginTab = document.getElementById("tab-btn-login");
+    const registerTab = document.getElementById("tab-btn-register");
+    const authForm = document.getElementById("auth-form");
+    const submitBtn = document.getElementById("btn-auth-submit");
+
+    loginTab.addEventListener("click", () => {
+        authMode = "LOGIN";
+        loginTab.classList.add("active");
+        registerTab.classList.remove("active");
+        submitBtn.textContent = "Access Workspace";
+    });
+
+    registerTab.addEventListener("click", () => {
+        authMode = "REGISTER";
+        registerTab.classList.add("active");
+        loginTab.classList.remove("active");
+        submitBtn.textContent = "Register Secure Account";
+    });
+
+    authForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = document.getElementById("auth-username").value.trim();
+        const password = document.getElementById("auth-password").value;
+
+        if (authMode === "LOGIN") {
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: jsonStringify({ username, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem("auth_token", data.token);
+                    localStorage.setItem("username", data.username);
+                    showToast("Authentication Successful!", "success");
+                    loadWorkspace(data.username);
+                } else {
+                    showToast(data.error || "Login Failed", "error");
+                }
+            } catch (err) {
+                showToast("Server connection error.", "error");
+            }
+        } else {
+            try {
+                const res = await fetch("/api/auth/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: jsonStringify({ username, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.success, "success");
+                    // Toggle back to login automatically
+                    loginTab.click();
+                    document.getElementById("auth-password").value = "";
+                } else {
+                    showToast(data.error || "Registration Failed", "error");
+                }
+            } catch (err) {
+                showToast("Server connection error.", "error");
+            }
+        }
+    });
+
+    // Logout listener
+    document.getElementById("btn-logout").addEventListener("click", async () => {
+        try {
+            await fetch("/api/auth/logout", {
+                method: "POST",
+                headers: getAuthHeaders()
+            });
+        } catch (e) {}
+        
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("username");
+        
+        if (activePollingInterval) clearInterval(activePollingInterval);
+        
+        document.getElementById("main-app-container").classList.add("hidden");
+        document.getElementById("auth-overlay").classList.remove("hidden");
+        showToast("Logged out successfully.", "success");
+    });
+}
+
+function loadWorkspace(username) {
+    document.getElementById("auth-overlay").classList.add("hidden");
+    document.getElementById("main-app-container").classList.remove("hidden");
+    
+    // Set user headers
+    document.getElementById("user-display-name").textContent = username;
+    document.getElementById("avatar-letter").textContent = username.charAt(0).toUpperCase();
+
+    // Trigger tab setup
+    setupTabListeners();
+    switchTab("dashboard");
+    
+    // Start active polling synchronization (sync portfolio/prices/logs every 5 seconds)
+    if (activePollingInterval) clearInterval(activePollingInterval);
+    activePollingInterval = setInterval(syncBackendData, 5000);
+}
+
+// JSON.stringify helper safeguarding formatting
+function jsonStringify(obj) {
+    return JSON.stringify(obj);
+}
+
+// --- DYNAMIC DATA SYNCHRONIZATION FROM PYTHON REST API ---
+async function syncBackendData() {
+    if (!getToken()) return;
+
+    try {
+        const res = await fetch("/api/portfolio", {
+            headers: getAuthHeaders()
+        });
+        if (res.status === 401) {
+            document.getElementById("btn-logout").click();
+            return;
+        }
+
+        const data = await res.json();
+        if (res.ok) {
+            portfolio.cash = data.cash;
+            portfolio.holdings = data.holdings;
+            marketPrices = data.marketPrices;
+            marketRSIs = data.marketRSIs;
+
+            // Re-render UI components active in the current tab
+            if (activeTab === "dashboard") {
+                renderDashboard();
+            } else if (activeTab === "screener") {
+                renderScreener();
+            } else if (activeTab === "portfolio") {
+                renderPortfolio();
+            }
+        }
+    } catch (e) {
+        console.error("API Sync error:", e);
+    }
+}
+
+// --- AUTHENTICATED MOCK TRANSACTION EXECUTOR ---
+async function executeTransaction() {
+    const ticker = document.getElementById("order-ticker").value;
+    const qty = parseInt(document.getElementById("order-qty").value) || 0;
+    const action = document.getElementById("btn-toggle-buy").classList.contains("active-buy") ? "BUY" : "SELL";
+
+    if (qty <= 0) {
+        showToast("Invalid quantity.", "error");
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/portfolio/trade", {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: jsonStringify({ ticker, qty, action })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast(data.success, "success");
+            await syncBackendData();
+        } else {
+            showToast(data.error || "Trade Execution Failed", "error");
+        }
+    } catch (err) {
+        showToast("Broker execution connection error.", "error");
+    }
+}
+
+// --- RENDER PORTFOLIO LOGS DAEMON TABLE ---
+async function renderScannerLogs() {
+    const tbody = document.getElementById("scanner-logs-tbody");
+    if (!tbody) return;
+
+    try {
+        const res = await fetch("/api/scanner/logs", {
+            headers: getAuthHeaders()
+        });
+        const data = await res.json();
+
+        if (res.ok && data.logs.length > 0) {
+            tbody.innerHTML = data.logs.map(log => {
+                const s = stocksData.find(st => st.ticker === log.ticker);
+                const currency = s ? s.currency : "$";
+                const isSell = log.action.includes("SELL");
+
+                return `
+                    <tr>
+                        <td style="color: var(--text-secondary); font-size: 11px;">${log.timestamp}</td>
+                        <td><span class="stock-sym">${log.ticker}</span></td>
+                        <td><span class="badge ${isSell ? 'badge-danger' : 'badge-success'}">${log.action}</span></td>
+                        <td style="font-weight: 500;">${log.reason}</td>
+                        <td class="negative" style="font-weight: 700;">${formatCurrency(log.price, currency)}</td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-secondary);">No scans executed yet. Active monitoring is polling...</td>
+                </tr>
+            `;
+        }
+    } catch (e) {
+        console.error("Scanner log fetch error:", e);
+    }
+}
+
 // --- TAB SWAP NAVIGATION ---
 window.switchTab = function(tabId) {
     activeTab = tabId;
     
-    // Toggle active classes on nav buttons
     document.querySelectorAll(".nav-item").forEach(btn => {
         if (btn.getAttribute("data-tab") === tabId) {
             btn.classList.add("active");
@@ -286,7 +491,6 @@ window.switchTab = function(tabId) {
         }
     });
 
-    // Toggle active tab panels
     document.querySelectorAll(".tab-panel").forEach(panel => {
         if (panel.id === `tab-${tabId}`) {
             panel.classList.add("active");
@@ -295,7 +499,7 @@ window.switchTab = function(tabId) {
         }
     });
 
-    // Run Tab Specific Render Initializers
+    // Run Tab Initializers
     if (tabId === "dashboard") {
         renderDashboard();
     } else if (tabId === "screener") {
@@ -304,6 +508,7 @@ window.switchTab = function(tabId) {
         renderAnalyzer();
     } else if (tabId === "portfolio") {
         renderPortfolio();
+        renderScannerLogs();
     } else if (tabId === "mood") {
         renderMoodTab();
     }
@@ -350,7 +555,6 @@ function setupSearch() {
                 </div>
             `).join('');
 
-            // Click suggestion to view in Analyzer
             dropdown.querySelectorAll(".search-suggestion-item").forEach(item => {
                 item.addEventListener("click", () => {
                     const ticker = item.getAttribute("data-ticker");
@@ -365,7 +569,6 @@ function setupSearch() {
         dropdown.classList.remove("hidden");
     });
 
-    // Close search dropdown on click outside
     document.addEventListener("click", (e) => {
         if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.classList.add("hidden");
@@ -384,18 +587,18 @@ function drawMoodGauge(score) {
     const cy = canvas.height - 10;
     const r = 90;
 
-    // Draw background track
+    // Track
     ctx.beginPath();
     ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI, false);
     ctx.lineWidth = 16;
     ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
     ctx.stroke();
 
-    // Draw gradient color track (Fear -> Greed)
+    // Gradient
     const gradient = ctx.createLinearGradient(0, cy, canvas.width, cy);
-    gradient.addColorStop(0, '#ef4444');   // Fear (Red)
-    gradient.addColorStop(0.5, '#f59e0b'); // Neutral (Orange)
-    gradient.addColorStop(1, '#10b981');   // Greed (Green)
+    gradient.addColorStop(0, '#ef4444');
+    gradient.addColorStop(0.5, '#f59e0b');
+    gradient.addColorStop(1, '#10b981');
 
     ctx.beginPath();
     ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI, false);
@@ -403,11 +606,10 @@ function drawMoodGauge(score) {
     ctx.strokeStyle = gradient;
     ctx.stroke();
 
-    // Calculate angle for current score
     const scoreFraction = score / 100;
     const targetAngle = Math.PI + (scoreFraction * Math.PI);
 
-    // Draw needle
+    // Needle
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(targetAngle - Math.PI / 2);
@@ -421,7 +623,6 @@ function drawMoodGauge(score) {
     ctx.fill();
     ctx.restore();
 
-    // Needle pivot center dot
     ctx.beginPath();
     ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
     ctx.fillStyle = '#8b5cf6';
@@ -430,18 +631,17 @@ function drawMoodGauge(score) {
 
 // --- RENDER: DASHBOARD HOME ---
 function renderDashboard() {
-    drawMoodGauge(78); // Hardcode standard mock sentiment gauge
+    drawMoodGauge(78);
 
-    // Top Fundamental Picks list
     const tbody = document.getElementById("top-picks-tbody");
     if (!tbody) return;
 
-    // Filter to stocks with high score
     const topStocks = [...stocksData].sort((a,b) => b.healthScore - a.healthScore).slice(0, 4);
 
     tbody.innerHTML = topStocks.map(s => {
-        const disc = calculateDiscount(s.fairValue, s.price);
-        const discClass = disc > 0 ? "positive" : "negative";
+        const currentPrice = marketPrices[s.ticker] || s.history.prices[s.history.prices.length - 1];
+        const disc = calculateDiscount(s.fairValue, currentPrice);
+        const discClass = parseFloat(disc) > 0 ? "positive" : "negative";
         const scoreClass = s.healthScore >= 88 ? "score-excellent" : "score-good";
         const momoIcon = s.momoType === "high" ? "trending-up" : "rotate-ccw";
         const momoColor = s.momoType === "high" ? "var(--success-glow)" : "var(--info-glow)";
@@ -457,7 +657,7 @@ function renderDashboard() {
                 <td><strong>${s.name}</strong></td>
                 <td><span class="score-badge ${scoreClass}">${s.healthScore}</span></td>
                 <td>${formatCurrency(s.fairValue, s.currency)}</td>
-                <td><span class="${discClass}">${disc > 0 ? '+' : ''}${disc}%</span></td>
+                <td><span class="${discClass}">${parseFloat(disc) > 0 ? '+' : ''}${disc}%</span></td>
                 <td>
                     <div class="momo-indicator" style="color: ${momoColor}">
                         <i data-lucide="${momoIcon}" style="width: 14px; height: 14px"></i>
@@ -471,12 +671,8 @@ function renderDashboard() {
         `;
     }).join('');
 
-    // Render Momo Trends list
     renderMomoTrendsList("high");
-
-    // Donut chart & legend initialization
     renderPortfolioDonut();
-
     lucide.createIcons();
 }
 
@@ -488,7 +684,13 @@ function renderMomoTrendsList(momoType) {
     const filtered = stocksData.filter(s => s.momoType === momoType);
 
     list.innerHTML = filtered.map(s => {
-        const isUp = s.change >= 0;
+        // Price fluctuations
+        const prevPrice = s.history.prices[s.history.prices.length - 2];
+        const currentPrice = marketPrices[s.ticker] || s.history.prices[s.history.prices.length - 1];
+        const rsiVal = marketRSIs[s.ticker] || s.rsi || 50;
+
+        const changePercent = (((currentPrice - prevPrice) / prevPrice) * 100).toFixed(2);
+        const isUp = parseFloat(changePercent) >= 0;
         const iconBg = isUp ? "up" : "down";
         const icon = isUp ? "arrow-up-right" : "arrow-down-right";
 
@@ -504,8 +706,8 @@ function renderMomoTrendsList(momoType) {
                     </div>
                 </div>
                 <div class="momo-stats">
-                    <span class="momo-val ${isUp ? 'positive' : 'negative'}">${isUp ? '+' : ''}${s.changePercent}%</span>
-                    <div class="momo-metric">RSI: ${s.rsi} (${s.rsi > 70 ? 'Overbought' : s.rsi < 40 ? 'Oversold' : 'Neutral'})</div>
+                    <span class="momo-val ${isUp ? 'positive' : 'negative'}">${isUp ? '+' : ''}${changePercent}%</span>
+                    <div class="momo-metric">RSI: ${rsiVal} (${rsiVal > 70 ? 'Overbought' : rsiVal < 40 ? 'Downtrend alert' : 'Neutral'})</div>
                 </div>
             </div>
         `;
@@ -527,7 +729,8 @@ function renderScreener() {
         if (marketFilter !== "ALL" && s.market !== marketFilter) return false;
         if (s.healthScore < scoreFilter) return false;
         
-        const disc = parseFloat(calculateDiscount(s.fairValue, s.price));
+        const price = marketPrices[s.ticker] || s.history.prices[s.history.prices.length - 1];
+        const disc = parseFloat(calculateDiscount(s.fairValue, price));
         if (valuationFilter === "UNDERVALUED" && disc <= 0) return false;
         if (valuationFilter === "FAIRVALUE" && disc < 0) return false;
         
@@ -535,8 +738,9 @@ function renderScreener() {
     });
 
     tbody.innerHTML = filtered.map(s => {
-        const disc = calculateDiscount(s.fairValue, s.price);
-        const discClass = disc > 0 ? "positive" : "negative";
+        const price = marketPrices[s.ticker] || s.history.prices[s.history.prices.length - 1];
+        const disc = calculateDiscount(s.fairValue, price);
+        const discClass = parseFloat(disc) > 0 ? "positive" : "negative";
         const scoreClass = s.healthScore >= 88 ? "score-excellent" : s.healthScore >= 80 ? "score-good" : "score-average";
 
         return `
@@ -548,8 +752,8 @@ function renderScreener() {
                 <td>${s.de}</td>
                 <td>${s.roe}%</td>
                 <td>${formatCurrency(s.fairValue, s.currency)}</td>
-                <td><strong>${formatCurrency(s.price, s.currency)}</strong></td>
-                <td><span class="${discClass}">${disc > 0 ? '+' : ''}${disc}%</span></td>
+                <td><strong>${formatCurrency(price, s.currency)}</strong></td>
+                <td><span class="${discClass}">${parseFloat(disc) > 0 ? '+' : ''}${disc}%</span></td>
                 <td>
                     <button class="btn btn-primary" onclick="loadAnalyzerForTicker('${s.ticker}')">Analyze</button>
                 </td>
@@ -574,21 +778,25 @@ function renderAnalyzer() {
     `).join('');
 }
 
-// --- RENDER PORTFOLIO & MOCK TRANSACTION ENGINE ---
+// --- RENDER PORTFOLIO SECTION ---
 function renderPortfolio() {
     const tbody = document.getElementById("portfolio-table-tbody");
     if (!tbody) return;
 
     let totalValue = portfolio.cash;
-    
+    let investedValue = 0;
+
     const rowHTML = portfolio.holdings.map(hold => {
         const s = stocksData.find(st => st.ticker === hold.ticker);
         if (!s) return '';
 
-        const currentVal = hold.qty * s.price;
+        const currentPrice = marketPrices[hold.ticker] || s.history.prices[s.history.prices.length - 1];
+        const currentVal = hold.qty * currentPrice;
+        
+        investedValue += (hold.qty * hold.avgPrice);
         totalValue += currentVal;
 
-        const pnl = ((s.price - hold.avgPrice) / hold.avgPrice) * 100;
+        const pnl = ((currentPrice - hold.avgPrice) / hold.avgPrice) * 100;
         const pnlClass = pnl >= 0 ? "positive" : "negative";
 
         return `
@@ -601,7 +809,7 @@ function renderPortfolio() {
                 </td>
                 <td>${hold.qty} shares</td>
                 <td>${formatCurrency(hold.avgPrice, s.currency)}</td>
-                <td><strong>${formatCurrency(s.price, s.currency)}</strong></td>
+                <td><strong>${formatCurrency(currentPrice, s.currency)}</strong></td>
                 <td><span class="${pnlClass}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%</span></td>
                 <td><strong>${formatCurrency(currentVal, s.currency)}</strong></td>
                 <td>
@@ -611,52 +819,59 @@ function renderPortfolio() {
         `;
     }).join('');
 
-    tbody.innerHTML = rowHTML;
+    tbody.innerHTML = rowHTML || `
+        <tr>
+            <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 30px;">
+                You hold no stock deployments yet. Use the Trade Simulator to buy stocks!
+            </td>
+        </tr>
+    `;
 
-    // Update Header Metric Displays
-    const totalPnlVal = totalValue - 100000; // Mock standard initially invested capital of 100k
-    const totalPnlPercent = (totalPnlVal / 100000) * 100;
+    // Total calculations
+    const totalPnlVal = totalValue - 100000.00;
+    const totalPnlPercent = (totalPnlVal / 100000.00) * 100;
+    const pnlClass = totalPnlVal >= 0 ? "positive" : "negative";
 
     document.getElementById("port-total-value").textContent = formatCurrency(totalValue, "$");
     document.getElementById("port-total-cash").textContent = `Cash Balance: ${formatCurrency(portfolio.cash, "$")}`;
-    document.getElementById("port-total-pnl-val").textContent = `${totalPnlVal >= 0 ? '+' : ''}${formatCurrency(totalPnlVal, "$")}`;
-    document.getElementById("port-total-pnl-val").className = `metric-value ${totalPnlVal >= 0 ? 'positive' : 'negative'}`;
+    document.getElementById("port-invested").textContent = formatCurrency(investedValue, "$");
+    document.getElementById("port-total-pnl-val").textContent = `${totalPnlVal >= 0 ? '+' : ''}${formatCurrency(totalPnlVal, "$")} (${totalPnlPercent.toFixed(1)}%)`;
+    document.getElementById("port-total-pnl-val").className = `metric-value ${pnlClass}`;
 
-    // Fill Quick Order dropdown options
+    // Fill trade dropdown options
     const select = document.getElementById("order-ticker");
     if (select) {
-        select.innerHTML = stocksData.map(s => `
-            <option value="${s.ticker}">${s.ticker} - ${s.name} (${formatCurrency(s.price, s.currency)})</option>
-        `).join('');
+        select.innerHTML = stocksData.map(s => {
+            const price = marketPrices[s.ticker] || s.history.prices[s.history.prices.length - 1];
+            return `
+                <option value="${s.ticker}">${s.ticker} - ${s.name} (${formatCurrency(price, s.currency)})</option>
+            `;
+        }).join('');
         
-        // Recalculate quick price estimate on selection/quantity change
         updateEstOrderCost();
     }
 }
 
-// --- RENDER PORTFOLIO DONUT CHART ---
+// --- RENDER PORTFOLIO DONUT ALLOCATION ---
 function renderPortfolioDonut() {
     const canvas = document.getElementById("portfolioDonutChart");
     if (!canvas) return;
 
-    // Destroy prior chart if active to clear canvas reuse bug
     if (currentCharts["portfolioDonut"]) {
         currentCharts["portfolioDonut"].destroy();
     }
 
     const labels = [];
     const data = [];
-    const colors = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b"];
+    const colors = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#a78bfa", "#34d399"];
 
     portfolio.holdings.forEach(hold => {
         const s = stocksData.find(st => st.ticker === hold.ticker);
-        if (s) {
-            labels.push(hold.ticker);
-            data.push(hold.qty * s.price);
-        }
+        const currentPrice = marketPrices[hold.ticker] || (s ? s.history.prices[s.history.prices.length - 1] : 0);
+        labels.push(hold.ticker);
+        data.push(hold.qty * currentPrice);
     });
 
-    // Add Cash remaining
     labels.push("CASH");
     data.push(portfolio.cash);
 
@@ -671,26 +886,27 @@ function renderPortfolioDonut() {
             }]
         },
         options: {
-            plugins: {
-                legend: { display: false }
-            },
+            plugins: { legend: { display: false } },
             cutout: '70%'
         }
     });
 
-    // Set custom Legend
     const legendList = document.getElementById("portfolio-legend-list");
     if (legendList) {
-        legendList.innerHTML = labels.map((lbl, idx) => `
-            <div class="legend-item">
-                <span class="legend-color-dot" style="background: ${colors[idx]}"></span>
-                <span>${lbl}: <strong>${((data[idx] / data.reduce((a,b) => a+b, 0)) * 100).toFixed(0)}%</strong></span>
-            </div>
-        `).join('');
+        legendList.innerHTML = labels.map((lbl, idx) => {
+            const sum = data.reduce((a,b) => a+b, 0);
+            const percentage = sum > 0 ? ((data[idx] / sum) * 100).toFixed(0) : 0;
+            return `
+                <div class="legend-item">
+                    <span class="legend-color-dot" style="background: ${colors[idx]}"></span>
+                    <span>${lbl}: <strong>${percentage}%</strong></span>
+                </div>
+            `;
+        }).join('');
     }
 }
 
-// --- RENDER MARKET MOOD DETAILED TAB ---
+// --- MARKET MOOD DETAIL LINE CHART ---
 function renderMoodTab() {
     const canvas = document.getElementById("moodHistoryChart");
     if (!canvas) return;
@@ -715,9 +931,7 @@ function renderMoodTab() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
+            plugins: { legend: { display: false } },
             scales: {
                 y: { min: 0, max: 100, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
                 x: { grid: { color: 'rgba(255, 255, 255, 0.05)' } }
@@ -726,7 +940,7 @@ function renderMoodTab() {
     });
 }
 
-// --- TRANSACTION EXECUTOR PANEL ---
+// --- TRANSACTION CALC ---
 function updateEstOrderCost() {
     const ticker = document.getElementById("order-ticker").value;
     const qty = parseInt(document.getElementById("order-qty").value) || 0;
@@ -734,67 +948,16 @@ function updateEstOrderCost() {
     const estCostLabel = document.getElementById("order-est-cost");
 
     if (s && estCostLabel) {
-        const cost = s.price * qty;
+        const currentPrice = marketPrices[ticker] || s.history.prices[s.history.prices.length - 1];
+        const cost = currentPrice * qty;
         estCostLabel.textContent = formatCurrency(cost, s.currency);
     }
-}
-
-function executeTransaction() {
-    const ticker = document.getElementById("order-ticker").value;
-    const qty = parseInt(document.getElementById("order-qty").value) || 0;
-    const action = document.getElementById("btn-toggle-buy").classList.contains("active-buy") ? "BUY" : "SELL";
-
-    const s = stocksData.find(st => st.ticker === ticker);
-    if (!s) return;
-
-    const totalCost = s.price * qty;
-
-    if (qty <= 0) {
-        showToast("Invalid quantity selected.", "error");
-        return;
-    }
-
-    if (action === "BUY") {
-        if (portfolio.cash < totalCost) {
-            showToast("Insufficient cash balance for this order.", "error");
-            return;
-        }
-
-        portfolio.cash -= totalCost;
-        const existing = portfolio.holdings.find(h => h.ticker === ticker);
-        if (existing) {
-            // Recalculate average price
-            const totalShares = existing.qty + qty;
-            existing.avgPrice = ((existing.qty * existing.avgPrice) + totalCost) / totalShares;
-            existing.qty = totalShares;
-        } else {
-            portfolio.holdings.push({ ticker: ticker, qty: qty, avgPrice: s.price });
-        }
-        showToast(`Successfully bought ${qty} shares of ${ticker}!`, "success");
-    } else {
-        const existing = portfolio.holdings.find(h => h.ticker === ticker);
-        if (!existing || existing.qty < qty) {
-            showToast("You do not hold enough shares of this stock to sell.", "error");
-            return;
-        }
-
-        portfolio.cash += totalCost;
-        existing.qty -= qty;
-        if (existing.qty === 0) {
-            portfolio.holdings = portfolio.holdings.filter(h => h.ticker !== ticker);
-        }
-        showToast(`Successfully sold ${qty} shares of ${ticker}!`, "success");
-    }
-
-    // Re-render portfolio content
-    renderPortfolio();
 }
 
 // --- RENDER DYNAMIC STOCK ANALYZER VIEW ---
 window.loadAnalyzerForTicker = function(ticker) {
     switchTab("analyzer");
 
-    // Set side selection active CSS class
     document.querySelectorAll(".analyzer-stock-item").forEach(item => {
         if (item.getAttribute("data-ticker") === ticker) {
             item.classList.add("active");
@@ -807,8 +970,16 @@ window.loadAnalyzerForTicker = function(ticker) {
     const container = document.getElementById("analyzer-details");
     if (!s || !container) return;
 
-    const disc = calculateDiscount(s.fairValue, s.price);
-    const discClass = disc > 0 ? "positive" : "negative";
+    const currentPrice = marketPrices[ticker] || s.history.prices[s.history.prices.length - 1];
+    const change = s.change || 0.0;
+    const rsiVal = marketRSIs[ticker] || s.rsi || 50;
+    
+    // Copy history price array and append dynamic price as last node
+    const historyPrices = [...s.history.prices];
+    historyPrices[historyPrices.length - 1] = currentPrice;
+
+    const disc = calculateDiscount(s.fairValue, currentPrice);
+    const discClass = parseFloat(disc) > 0 ? "positive" : "negative";
 
     container.innerHTML = `
         <div class="analyzer-details-header">
@@ -817,9 +988,9 @@ window.loadAnalyzerForTicker = function(ticker) {
                 <div class="analyzer-company-desc">${s.sector} Segment &bull; ${s.market} Market Asset</div>
             </div>
             <div class="analyzer-header-pricing">
-                <div class="analyzer-live-price">${formatCurrency(s.price, s.currency)}</div>
-                <div class="analyzer-live-change ${s.change >= 0 ? 'positive' : 'negative'}">
-                    ${s.change >= 0 ? '+' : ''}${s.change} (${s.changePercent}%)
+                <div class="analyzer-live-price">${formatCurrency(currentPrice, s.currency)}</div>
+                <div class="analyzer-live-change positive">
+                    Live Active Scanning
                 </div>
             </div>
         </div>
@@ -844,7 +1015,6 @@ window.loadAnalyzerForTicker = function(ticker) {
         </div>
 
         <div class="analyzer-grid">
-            <!-- Left Chart: History & Projections -->
             <div class="glass-card col-span-8">
                 <div class="card-header">
                     <h3>Performance Timeline (Last 6 Months)</h3>
@@ -854,7 +1024,6 @@ window.loadAnalyzerForTicker = function(ticker) {
                 </div>
             </div>
 
-            <!-- Right: Health Valuation -->
             <div class="glass-card col-span-4">
                 <div class="card-header">
                     <h3>Fair Valuation Math</h3>
@@ -866,16 +1035,15 @@ window.loadAnalyzerForTicker = function(ticker) {
                     </div>
                     <div style="display: flex; justify-content: space-between">
                         <span>Current Market Price:</span>
-                        <strong>${formatCurrency(s.price, s.currency)}</strong>
+                        <strong>${formatCurrency(currentPrice, s.currency)}</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px">
                         <span>Safety discount margin:</span>
-                        <strong class="${discClass}">${disc > 0 ? '+' : ''}${disc}%</strong>
+                        <strong class="${discClass}">${parseFloat(disc) > 0 ? '+' : ''}${disc}%</strong>
                     </div>
                 </div>
             </div>
 
-            <!-- Left: Quarterly Results -->
             <div class="glass-card col-span-6">
                 <div class="card-header">
                     <h3>Quarterly Growth Analysis</h3>
@@ -885,7 +1053,6 @@ window.loadAnalyzerForTicker = function(ticker) {
                 </div>
             </div>
 
-            <!-- Right: Future Projections -->
             <div class="glass-card col-span-6">
                 <div class="card-header">
                     <h3>Future Revenue & Income Projections</h3>
@@ -895,12 +1062,11 @@ window.loadAnalyzerForTicker = function(ticker) {
                 </div>
             </div>
 
-            <!-- Full-width Pro/Con and Momentum summary -->
             <div class="glass-card col-span-12">
                 <div class="card-header">
                     <h3>Fundamental Summary & Momentum Audit ("Momos")</h3>
-                    <span class="badge ${s.rsi > 70 ? 'badge-danger' : s.rsi < 40 ? 'badge-success' : 'badge-warning'}">
-                        Momentum RSI: ${s.rsi}
+                    <span class="badge ${rsiVal > 70 ? 'badge-danger' : rsiVal < 40 ? 'badge-success' : 'badge-warning'}">
+                        Momentum RSI: ${rsiVal}
                     </span>
                 </div>
                 <div class="analyzer-grid" style="gap: 16px">
@@ -932,14 +1098,11 @@ window.loadAnalyzerForTicker = function(ticker) {
     `;
 
     lucide.createIcons();
-
-    // Trigger Chart.js graph drawing handlers
-    renderAnalyzerCharts(s);
+    renderAnalyzerCharts(s, historyPrices);
 };
 
 // --- DRAW ACTIVE ANALYZER CHART OBJECTS ---
-function renderAnalyzerCharts(s) {
-    // 1. Price History Line Graph
+function renderAnalyzerCharts(s, historyPrices) {
     const priceCtx = document.getElementById("analyzerPriceChart");
     if (priceCtx) {
         if (currentCharts["analyzerPrice"]) currentCharts["analyzerPrice"].destroy();
@@ -950,7 +1113,7 @@ function renderAnalyzerCharts(s) {
                 labels: s.history.dates,
                 datasets: [{
                     label: 'Close Price',
-                    data: s.history.prices,
+                    data: historyPrices,
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     tension: 0.3,
@@ -969,7 +1132,6 @@ function renderAnalyzerCharts(s) {
         });
     }
 
-    // 2. Quarterly Revenue Bar Graph
     const quarterlyCtx = document.getElementById("analyzerQuarterlyChart");
     if (quarterlyCtx) {
         if (currentCharts["analyzerQuarterly"]) currentCharts["analyzerQuarterly"].destroy();
@@ -1002,7 +1164,6 @@ function renderAnalyzerCharts(s) {
         });
     }
 
-    // 3. Earnings & Profit Future Projections Graph
     const projectionsCtx = document.getElementById("analyzerProjectionsChart");
     if (projectionsCtx) {
         if (currentCharts["analyzerProjections"]) currentCharts["analyzerProjections"].destroy();
@@ -1042,13 +1203,8 @@ function renderAnalyzerCharts(s) {
     }
 }
 
-// --- SETUP TRANSACTION TRIGGERS & ONLOAD ENGINE ---
-document.addEventListener("DOMContentLoaded", () => {
-    lucide.createIcons();
-    setupSearch();
-    renderDashboard();
-
-    // Event listener setup for tab filter changes
+// --- SETUP EVENT TRIGGERS ON NAVIGATION ---
+function setupTabListeners() {
     document.querySelectorAll("[data-momo]").forEach(tab => {
         tab.addEventListener("click", () => {
             document.querySelectorAll("[data-momo]").forEach(t => t.classList.remove("active"));
@@ -1057,12 +1213,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Setup Screener Filtering listeners
     document.getElementById("filter-market").addEventListener("change", renderScreener);
     document.getElementById("filter-score").addEventListener("change", renderScreener);
     document.getElementById("filter-valuation").addEventListener("change", renderScreener);
 
-    // Setup Navigation tab button listeners
+    document.querySelectorAll(".nav-item").forEach(btn => {
+        // Clear prior listeners to avoid duplication
+        btn.replaceWith(btn.cloneNode(true));
+    });
+
     document.querySelectorAll(".nav-item").forEach(btn => {
         btn.addEventListener("click", () => {
             const tabId = btn.getAttribute("data-tab");
@@ -1070,7 +1229,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Transaction Panel Buy/Sell toggle
     const buyBtn = document.getElementById("btn-toggle-buy");
     const sellBtn = document.getElementById("btn-toggle-sell");
     if (buyBtn && sellBtn) {
@@ -1086,9 +1244,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Execute order listener
     const execBtn = document.getElementById("btn-execute-order");
-    if (execBtn) execBtn.addEventListener("click", executeTransaction);
+    if (execBtn) {
+        execBtn.replaceWith(execBtn.cloneNode(true));
+        document.getElementById("btn-execute-order").addEventListener("click", executeTransaction);
+    }
 
     const qtyInput = document.getElementById("order-qty");
     if (qtyInput) qtyInput.addEventListener("input", updateEstOrderCost);
@@ -1096,7 +1256,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const tickerSelect = document.getElementById("order-ticker");
     if (tickerSelect) tickerSelect.addEventListener("change", updateEstOrderCost);
 
-    // Theme toggle setup (Light / Dark mode)
     const themeBtn = document.getElementById("theme-toggle-btn");
     themeBtn.addEventListener("click", () => {
         const body = document.body;
@@ -1113,9 +1272,6 @@ document.addEventListener("DOMContentLoaded", () => {
             moon.classList.remove("hidden");
         }
         
-        // Re-render gauge
-        if (activeTab === "dashboard") {
-            drawMoodGauge(78);
-        }
+        if (activeTab === "dashboard") drawMoodGauge(78);
     });
-});
+}
