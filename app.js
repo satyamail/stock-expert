@@ -151,15 +151,101 @@ function loadWorkspace(username) {
 
     setupTabListeners();
     setupManualScanButton();
+    setupScreenerConfigListener();
     switchTab("dashboard");
     
     // Initial data load
     syncStocksList().then(() => {
         syncBackendData();
+        syncScreenerConfig();
     });
     
     if (activePollingInterval) clearInterval(activePollingInterval);
     activePollingInterval = setInterval(syncBackendData, 5000);
+}
+
+// --- SCREENER CREDENTIALS DATABASE INTEGRATION ---
+function setupScreenerConfigListener() {
+    const toggleBtn = document.getElementById("btn-toggle-screener-form");
+    const form = document.getElementById("screener-config-form");
+    
+    if (toggleBtn && form) {
+        toggleBtn.addEventListener("click", () => {
+            if (form.classList.contains("hidden")) {
+                form.classList.remove("hidden");
+                toggleBtn.textContent = "Close Configuration";
+            } else {
+                form.classList.add("hidden");
+                toggleBtn.textContent = "Configure Credentials";
+            }
+        });
+    }
+
+    const configForm = document.getElementById("screener-config-form");
+    if (configForm) {
+        configForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("screener-input-email").value.trim();
+            const password = document.getElementById("screener-input-password").value;
+
+            try {
+                const res = await fetch("/api/screener/config", {
+                    method: "POST",
+                    headers: defAuthHeaders(),
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showToast(data.success, "success");
+                    configForm.reset();
+                    configForm.classList.add("hidden");
+                    if (toggleBtn) toggleBtn.textContent = "Configure Credentials";
+                    await syncScreenerConfig();
+                    
+                    // Immediately re-trigger scanning database load to fetch live picks
+                    setTimeout(() => {
+                        syncStocksList().then(() => syncBackendData());
+                    }, 2000);
+                } else {
+                    showToast(data.error || "Failed to save configuration", "error");
+                }
+            } catch (err) {
+                showToast("Screener configuration connection error.", "error");
+            }
+        });
+    }
+}
+
+async function syncScreenerConfig() {
+    if (!getToken()) return;
+    try {
+        const res = await fetch("/api/screener/config", {
+            headers: defAuthHeaders()
+        });
+        const data = await res.json();
+        
+        const badge = document.getElementById("screener-status-badge");
+        const display = document.getElementById("screener-config-display");
+        const emailLabel = document.getElementById("screener-connected-email");
+        
+        if (res.ok && data.connected) {
+            if (badge) {
+                badge.textContent = "CONNECTED";
+                badge.className = "badge badge-success";
+            }
+            if (display) display.classList.remove("hidden");
+            if (emailLabel) emailLabel.textContent = data.email;
+        } else {
+            if (badge) {
+                badge.textContent = "DISCONNECTED";
+                badge.className = "badge badge-danger";
+            }
+            if (display) display.classList.add("hidden");
+        }
+    } catch (e) {
+        console.error("Screener config sync error:", e);
+    }
 }
 
 // --- SCREENER MANUAL SCAN TRIGGERS ---
@@ -208,6 +294,7 @@ style.innerHTML = `
     100% { transform: rotate(360deg); }
 }`;
 document.head.appendChild(style);
+
 
 
 // --- DYNAMIC STOCK DATA FETCHERS ---

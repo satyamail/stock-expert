@@ -81,6 +81,16 @@ def init_db():
     )
     """)
     
+    # Screener Credentials table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS screener_config (
+        user_id INTEGER PRIMARY KEY,
+        email TEXT NOT NULL,
+        password TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    """)
+    
     conn.commit()
     conn.close()
     print("[DB] SQLite Schema initialized successfully.")
@@ -113,17 +123,31 @@ def verify_session(headers) -> int:
 
 
 # --- LIVE SCREENER MARKET MEMORY ---
-# Holds current dynamically scanned stocks from Screener.in
 LIVE_MARKET_PICK = []
 
 def run_screener_scan():
     global LIVE_MARKET_PICK
     print("[Scanner] Initiating live scan sweep on Screener.in...")
     
-    # Authenticate if possible
+    # Dynamically query database for credentials
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT email, password FROM screener_config LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        screener.email = row[0]
+        screener.password = row[1]
+        print(f"[Scanner] Loaded active user's credentials from DB: {screener.email}")
+    else:
+        # Fall back to env
+        screener.load_env()
+        
+    # Authenticate
     screener.login()
     
-    # Query Nifty stocks with high return on equity and safe debt margins
+    # Query Nifty stocks
     query = "Return on equity > 15 AND Debt to equity < 0.8 AND Price to Earning < 25 AND Current price < Intrinsic Value"
     scanned_stocks = screener.execute_query(query)
     
@@ -131,7 +155,6 @@ def run_screener_scan():
         LIVE_MARKET_PICK = scanned_stocks
         print(f"[Scanner] Scanned {len(LIVE_MARKET_PICK)} Nifty stocks matching criteria from Screener.in successfully.")
     else:
-        # Static fallback if screener is offline or query was blocked
         print("[Scanner] Screener.in returned no results. Preserving current market data.")
 
 def run_247_scanner():
@@ -158,7 +181,6 @@ def run_247_scanner():
             holdings = cursor.fetchall()
             
             for user_id, ticker, qty, avg_price in holdings:
-                # Find matching scanned stock to fetch current price
                 scanned_stock = next((s for s in LIVE_MARKET_PICK if s["ticker"] == ticker), None)
                 if not scanned_stock:
                     continue
@@ -166,9 +188,6 @@ def run_247_scanner():
                 current_price = scanned_stock["price"]
                 health_score = scanned_stock["healthScore"]
                 
-                # Auto-Sell Conditions:
-                # 1. 8% Price drop (Stop-Loss)
-                # 2. Health score deteriorates (P/E or Debt spike)
                 price_drop_percent = ((avg_price - current_price) / avg_price) * 100
                 
                 should_sell = False
@@ -283,11 +302,43 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             return
             
         elif path == "/api/stocks":
-            # API endpoint to fetch scanned stocks list for front-end screeners
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"stocks": LIVE_MARKET_PICK}).encode("utf-8"))
+            return
+
+        elif path == "/api/screener/config":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+            
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("SELECT email FROM screener_config WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                # Mask email for security (e.g. s***a@mail.com)
+                email = row[0]
+                if "@" in email:
+                    name, domain = email.split("@", 1)
+                    masked = name[0] + "*" * (len(name) - 2) + name[-1] + "@" + domain
+                else:
+                    masked = email[0] + "*" * (len(email) - 1)
+                response = {"connected": True, "email": masked}
+            else:
+                response = {"connected": False}
+                
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode("utf-8"))
             return
 
         # --- SERVE STATIC FRONTEND FILES ---
@@ -420,6 +471,42 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"success": "Logged out"}).encode("utf-8"))
             return
 
+        # --- SCREENER CREDENTIALS CONFIGURATION ---
+        elif path == "/api/screener/config":
+            user_id = verify_session(self.headers)
+            if not user_id:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
+                return
+                
+            email = body.get("email", "").strip()
+            password = body.get("password", "")
+            
+            if not email or not password:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Email and Password are required."}).encode("utf-8"))
+                return
+                
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO screener_config (user_id, email, password) VALUES (?, ?, ?)", (user_id, email, password))
+            conn.commit()
+            conn.close()
+            
+            # Immediately trigger a background thread scan update with the new credentials
+            # to verify that they work live!
+            threading.Thread(target=run_screener_scan, daemon=True).start()
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": "Screener.in credentials saved and connection established!"}).encode("utf-8"))
+            return
+
         # --- MANUAL RE-SCAN TRIGGER ENDPOINT ---
         elif path == "/api/scanner/trigger":
             user_id = verify_session(self.headers)
@@ -430,7 +517,6 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
                 return
                 
-            # Execute scanner sweep
             run_screener_scan()
             
             self.send_response(200)
@@ -460,7 +546,6 @@ class StockRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Invalid values."}).encode("utf-8"))
                 return
                 
-            # Find matching scanned stock price
             scanned_stock = next((s for s in LIVE_MARKET_PICK if s["ticker"] == ticker), None)
             if not scanned_stock:
                 self.send_response(400)

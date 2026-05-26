@@ -85,6 +85,27 @@
             </nav>
 
             <div class="sidebar-footer">
+                <!-- Screener Integration Card -->
+                <div class="screener-config-card" id="screener-config-card" style="margin-bottom: 16px; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary);">Screener.in Account</span>
+                        <span class="badge badge-danger" id="screener-status-badge" style="font-size: 8px; padding: 2px 6px;">DISCONNECTED</span>
+                    </div>
+                    <div id="screener-config-display" class="hidden" style="font-size: 11px; margin-bottom: 8px; color: var(--text-secondary);">
+                        Email: <strong id="screener-connected-email" style="color: #fff;">-</strong>
+                    </div>
+                    <button class="btn btn-text" id="btn-toggle-screener-form" style="font-size: 11px; color: #a78bfa; padding: 0;">Configure Credentials</button>
+                    
+                    <form id="screener-config-form" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+                        <div style="font-size: 9px; color: var(--text-secondary); line-height: 1.2; margin-bottom: 4px;">
+                            Enter credentials to save securely in local SQLite database. Registers on <a href="https://www.screener.in/register/" target="_blank" style="color: #a78bfa; text-decoration: underline;">Screener.in</a>.
+                        </div>
+                        <input type="email" id="screener-input-email" required placeholder="Screener Email..." style="width: 100%; padding: 6px 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; color: #fff; font-size: 11px;">
+                        <input type="password" id="screener-input-password" required placeholder="Screener Password..." style="width: 100%; padding: 6px 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; color: #fff; font-size: 11px;">
+                        <button type="submit" class="btn btn-primary" style="font-size: 11px; padding: 6px; width: 100%; box-shadow: none;">Save Integration</button>
+                    </form>
+                </div>
+
                 <div class="status-indicator">
                     <span class="dot pulse-green"></span>
                     <span>Broker: Simulation Active</span>
