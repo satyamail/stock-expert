@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockExpert - Advanced Fundamental & Technical Intelligence</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i data-lucide="trending-up" class="glow-icon"></i>
+                </div>
+                <div class="logo-text">
+                    <span class="logo-title">Stock<span class="logo-highlight">Expert</span></span>
+                    <span class="logo-subtitle">Intelligent System</span>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-tab="screener">
+                    <i data-lucide="search"></i>
+                    <span>Fundamental Screener</span>
+                </button>
+                <button class="nav-item" data-tab="analyzer">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Stock Analyzer</span>
+                </button>
+                <button class="nav-item" data-tab="portfolio">
+                    <i data-lucide="wallet"></i>
+                    <span>My Portfolio</span>
+                </button>
+                <button class="nav-item" data-tab="mood">
+                    <i data-lucide="activity"></i>
+                    <span>Market Mood</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="dot pulse-green"></span>
+                    <span>Broker: Simulation Active</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="main-header">
+                <div class="header-search">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="global-search" placeholder="Search stocks by name or ticker (e.g. AAPL, NVDA, RELIANCE)...">
+                    <div id="search-suggestions" class="search-suggestions-dropdown hidden"></div>
+                </div>
+                <div class="header-profile">
+                    <div class="theme-toggle" id="theme-toggle-btn">
+                        <i data-lucide="sun" class="sun-icon"></i>
+                        <i data-lucide="moon" class="moon-icon hidden"></i>
+                    </div>
+                    <div class="profile-badge">
+                        <div class="avatar">S</div>
+                        <span class="profile-name">Satya's Workspace</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Tab Content: Dashboard -->
+            <section id="tab-dashboard" class="tab-panel active">
+                <div class="welcome-banner">
+                    <div class="welcome-text">
+                        <h1>Welcome to StockExpert</h1>
+                        <p>Real-time fundamental scoring, technical momentum analysis, and autonomous monitoring.</p>
+                    </div>
+                    <div class="market-quick-stats">
+                        <div class="stat-bubble">
+                            <span class="bubble-label">NIFTY 50</span>
+                            <span class="bubble-val positive">22,968.70 (+0.84%)</span>
+                        </div>
+                        <div class="stat-bubble">
+                            <span class="bubble-label">S&P 500</span>
+                            <span class="bubble-val positive">5,304.72 (+1.03%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid Grid Layout -->
+                <div class="dashboard-grid">
+                    <!-- Row 1: Mood Meter & Quick Stats -->
+                    <div class="grid-card col-span-4 glass-card">
+                        <div class="card-header">
+                            <h3>Market Mood Index</h3>
+                            <span class="badge badge-info">Realtime Sentiment</span>
+                        </div>
+                        <div class="mood-meter-container">
+                            <div class="mood-gauge-wrapper">
+                                <canvas id="moodGaugeCanvas" width="240" height="120"></canvas>
+                                <div class="mood-label" id="mood-label-value">Greed</div>
+                            </div>
+                            <div class="mood-description">
+                                <h4 id="mood-status">Extreme Greed (78/100)</h4>
+                                <p id="mood-advice">Market momentum is exceptionally strong. Fundamental backing is robust but watch out for localized valuations.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-card col-span-8 glass-card">
+                        <div class="card-header">
+                            <h3>Top Fundamental Picks</h3>
+                            <button class="btn btn-text" onclick="switchTab('screener')">View Screener <i data-lucide="arrow-right"></i></button>
+                        </div>
+                        <div class="picks-table-wrapper">
+                            <table class="premium-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ticker</th>
+                                        <th>Company</th>
+                                        <th>Score</th>
+                                        <th>Fair Value</th>
+                                        <th>Discount</th>
+                                        <th>Momentum</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="top-picks-tbody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Performance Summary & Portfolio Snapshot -->
+                    <div class="grid-card col-span-7 glass-card">
+                        <div class="card-header">
+                            <h3>Market Momentum Trends ("Momos")</h3>
+                            <div class="tab-filters">
+                                <span class="filter-tab active" data-momo="high">High Momo</span>
+                                <span class="filter-tab" data-momo="reversal">Reversals</span>
+                            </div>
+                        </div>
+                        <div class="momo-list-container" id="momo-trends-list">
+                            <!-- Dynamic Momo Cards -->
+                        </div>
+                    </div>
+
+                    <div class="grid-card col-span-5 glass-card">
+                        <div class="card-header">
+                            <h3>Portfolio Monitor</h3>
+                            <span class="badge badge-success" id="port-overall-pnl">+14.2% Total PnL</span>
+                        </div>
+                        <div class="portfolio-donut-section">
+                            <div class="donut-chart-wrapper">
+                                <canvas id="portfolioDonutChart"></canvas>
+                            </div>
+                            <div class="donut-legend" id="portfolio-legend-list">
+                                <!-- Dynamic Portfolio Items -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Content: Screener -->
+            <section id="tab-screener" class="tab-panel">
+                <div class="page-title-section">
+                    <h2>Fundamental Stock Screener</h2>
+                    <p>Screen companies by financial strength, margins, debt metrics, and calculated discounts.</p>
+                </div>
+                <div class="filter-bar glass-card">
+                    <div class="filter-group">
+                        <label for="filter-market">Market</label>
+                        <select id="filter-market">
+                            <option value="ALL">All Markets</option>
+                            <option value="US">US Market (S&P 500 / NASDAQ)</option>
+                            <option value="IN">Indian Market (NSE)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-score">Minimum Health Score</label>
+                        <select id="filter-score">
+                            <option value="0">All Scores</option>
+                            <option value="70">70+ (Strong)</option>
+                            <option value="85">85+ (Exceptional)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-valuation">Valuation Status</label>
+                        <select id="filter-valuation">
+                            <option value="ALL">All Valuations</option>
+                            <option value="UNDERVALUED">Undervalued Only</option>
+                            <option value="FAIRVALUE">Fair or Undervalued</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="glass-card table-card-full margin-top-20">
+                    <table class="premium-table" id="screener-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Company</th>
+                                <th>Score</th>
+                                <th>P/E Ratio</th>
+                                <th>D/E Ratio</th>
+                                <th>ROE (%)</th>
+                                <th>Fair Value</th>
+                                <th>Market Price</th>
+                                <th>Margin of Safety</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="screener-table-tbody">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Tab Content: Analyzer -->
+            <section id="tab-analyzer" class="tab-panel">
+                <div class="analyzer-layout">
+                    <!-- Sidebar Selection -->
+                    <div class="analyzer-sidebar glass-card">
+                        <h3>Select Stock</h3>
+                        <div class="stock-list-search">
+                            <input type="text" id="analyzer-search" placeholder="Filter list...">
+                        </div>
+                        <div class="analyzer-stock-list" id="analyzer-stock-list">
+                            <!-- Dynamic stock list items -->
+                        </div>
+                    </div>
+                    
+                    <!-- Content View -->
+                    <div class="analyzer-details-container" id="analyzer-details">
+                        <!-- Loaded dynamically -->
+                        <div class="empty-state">
+                            <i data-lucide="bar-chart-2"></i>
+                            <p>Select a stock from the left sidebar to load advanced fundamental analysis, quarterly margins, technical charts, and growth projections.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Content: Portfolio -->
+            <section id="tab-portfolio" class="tab-panel">
+                <div class="page-title-section">
+                    <h2>My Live Portfolio & Automated Broker</h2>
+                    <p>Monitor your active deployment, simulate buy/sell transactions, and set automation rules.</p>
+                </div>
+
+                <div class="portfolio-header-metrics">
+                    <div class="metric-card glass-card">
+                        <span class="metric-label">Total Value</span>
+                        <h2 class="metric-value" id="port-total-value">$114,250.00</h2>
+                        <span class="metric-change positive" id="port-daily-change">+1.42% Today</span>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <span class="metric-label">Invested Capital</span>
+                        <h2 class="metric-value" id="port-invested">$100,000.00</h2>
+                        <span class="metric-change" id="port-total-cash">Cash Balance: $15,750.00</span>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <span class="metric-label">Total PnL</span>
+                        <h2 class="metric-value positive" id="port-total-pnl-val">+$14,250.00</h2>
+                        <span class="metric-change positive">Outperforming Index by +4.8%</span>
+                    </div>
+                </div>
+
+                <div class="portfolio-grid">
+                    <div class="glass-card col-span-8">
+                        <div class="card-header">
+                            <h3>Deployed Stocks</h3>
+                        </div>
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th>Holdings</th>
+                                    <th>Avg Price</th>
+                                    <th>Current Price</th>
+                                    <th>P&L (%)</th>
+                                    <th>Value</th>
+                                    <th>Auto-Monitor Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolio-table-tbody">
+                                <!-- Dynamic entries -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="glass-card col-span-4">
+                        <div class="card-header">
+                            <h3>Quick Transaction Simulator</h3>
+                        </div>
+                        <div class="order-form">
+                            <div class="form-group">
+                                <label for="order-ticker">Select Stock</label>
+                                <select id="order-ticker">
+                                    <!-- Dynamic -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="order-action">Action</label>
+                                <div class="action-toggle-btns">
+                                    <button class="toggle-btn active-buy" id="btn-toggle-buy">BUY</button>
+                                    <button class="toggle-btn" id="btn-toggle-sell">SELL</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="order-qty">Quantity</label>
+                                <input type="number" id="order-qty" min="1" value="10">
+                            </div>
+                            <div class="order-cost-calc">
+                                <span>Estimated Cost:</span>
+                                <strong id="order-est-cost">$0.00</strong>
+                            </div>
+                            <button class="btn btn-primary btn-full-width" id="btn-execute-order">Execute Order</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Content: Market Mood -->
+            <section id="tab-mood" class="tab-panel">
+                <div class="page-title-section">
+                    <h2>Market Mood & Sentiment Dashboard</h2>
+                    <p>Aggregate of technical breadth, volatility, news sentiment, and social buzz indicators.</p>
+                </div>
+
+                <div class="mood-dashboard-grid">
+                    <div class="glass-card col-span-6">
+                        <div class="card-header">
+                            <h3>Fear & Greed Index History</h3>
+                        </div>
+                        <div class="chart-wrapper-large">
+                            <canvas id="moodHistoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card col-span-6">
+                        <div class="card-header">
+                            <h3>Sentiment Breakdown</h3>
+                        </div>
+                        <div class="sentiment-bars-container">
+                            <div class="sentiment-item">
+                                <div class="sentiment-info">
+                                    <span>Technical Momentum (RSI/MACD Breadth)</span>
+                                    <strong>85% Bulllish</strong>
+                                </div>
+                                <div class="sentiment-bar-track">
+                                    <div class="sentiment-bar-fill" style="width: 85%; background: var(--success-glow);"></div>
+                                </div>
+                            </div>
+                            <div class="sentiment-item">
+                                <div class="sentiment-info">
+                                    <span>Corporate Earnings Surprise (Q1)</span>
+                                    <strong>72% Positive</strong>
+                                </div>
+                                <div class="sentiment-bar-track">
+                                    <div class="sentiment-bar-fill" style="width: 72%; background: var(--info-glow);"></div>
+                                </div>
+                            </div>
+                            <div class="sentiment-item">
+                                <div class="sentiment-info">
+                                    <span>Market Volatility (VIX Index)</span>
+                                    <strong>Neutral / Stable</strong>
+                                </div>
+                                <div class="sentiment-bar-track">
+                                    <div class="sentiment-bar-fill" style="width: 50%; background: var(--warning-glow);"></div>
+                                </div>
+                            </div>
+                            <div class="sentiment-item">
+                                <div class="sentiment-info">
+                                    <span>Financial News Sentiment (AI Scanned)</span>
+                                    <strong>78% Optimistic</strong>
+                                </div>
+                                <div class="sentiment-bar-track">
+                                    <div class="sentiment-bar-fill" style="width: 78%; background: var(--success-glow);"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-notification" class="toast hidden"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
