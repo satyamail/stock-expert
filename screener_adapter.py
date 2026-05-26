@@ -214,6 +214,66 @@ class ScreenerAdapter:
         print(f"[Screener] Extracted {len(companies)} matching stocks from Screener.in table.")
         return companies
 
+    def fetch_company_details(self, ticker: str) -> dict:
+        opener = urllib.request.build_opener()
+        opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')]
+        if self.authenticated and self.session_cookies:
+            cookie_str = "; ".join([f"{k}={v}" for k, v in self.session_cookies.items()])
+            opener.addheaders.append(('Cookie', cookie_str))
+            
+        try:
+            print(f"[Screener] Scraping live details for individual stock ticker: {ticker.upper()}")
+            url = f"https://www.screener.in/company/{ticker.upper()}/"
+            
+            response = opener.open(url)
+            html = response.read().decode('utf-8')
+            
+            # Extract Company Name
+            name_match = re.search(r'<h1[^>]*>\s*(.*?)\s*</h1>', html, re.DOTALL)
+            name = name_match.group(1).strip() if name_match else ticker.upper()
+            # Clean name (remove any child HTML)
+            name = re.sub(r'<[^>]+>', '', name).strip()
+            
+            # Helper to extract numbers
+            def parse_metric(metric_name):
+                pattern = rf'<span class="name">\s*{metric_name}\s*</span>.*?<span class="number">\s*([^<]+)\s*</span>'
+                match = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
+                if match:
+                    val = match.group(1).replace(",", "").strip()
+                    return float(val)
+                return 0.0
+
+            price = parse_metric("Current Price")
+            pe = parse_metric("Stock P/E")
+            roe = parse_metric("Return on Equity")
+            de = parse_metric("Debt to Equity")
+            div_yield = parse_metric("Dividend Yield")
+            
+            if price == 0.0:
+                print(f"[Screener] Metric parsing failed for {ticker}. HTML structure might have changed or page was blocked.")
+                return None
+                
+            eps = price / pe if pe > 0 else (price * 0.05)
+            
+            company = {
+                "ticker": ticker.upper(),
+                "name": name,
+                "price": price,
+                "pe": pe if pe > 0 else 15.0,
+                "roe": roe if roe > 0 else 12.0,
+                "de": de,
+                "divYield": div_yield,
+                "fairValue": round(eps * (8.5 + 2 * 5), 2),
+                "healthScore": int(min(98, max(50, 95 - (de * 15) - (pe / 2) + (roe / 2)))),
+                "momoType": "high" if roe > 15 else "cooling",
+                "rsi": 52
+            }
+            print(f"[Screener] Successfully fetched individual metrics for {ticker}: Price={price}, ROE={roe}%")
+            return company
+        except Exception as e:
+            print(f"[Screener Scrape Error for {ticker}]: {str(e)}")
+            return None
+
 # Quick local test helper
 if __name__ == "__main__":
     adapter = ScreenerAdapter()

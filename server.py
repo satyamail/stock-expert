@@ -317,6 +317,57 @@ class StockRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"stocks": LIVE_MARKET_PICK}).encode("utf-8"))
             return
 
+        elif path == "/api/stocks/search":
+            query_params = urllib.parse.parse_qs(url.query)
+            ticker_list = query_params.get("ticker", [])
+            
+            if not ticker_list:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Ticker parameter is required."}).encode("utf-8"))
+                return
+                
+            ticker = ticker_list[0].upper().strip()
+            
+            # Check memory cache
+            existing = next((s for s in LIVE_MARKET_PICK if s["ticker"] == ticker), None)
+            if existing:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"stock": existing}).encode("utf-8"))
+                return
+                
+            # Dynamic scrape
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("SELECT email, password FROM screener_config LIMIT 1")
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                screener.email = row[0]
+                screener.password = row[1]
+                screener.login()
+                
+            scraped_stock = screener.fetch_company_details(ticker)
+            
+            if scraped_stock:
+                LIVE_MARKET_PICK.append(scraped_stock)
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"stock": scraped_stock}).encode("utf-8"))
+                return
+            else:
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Failed to retrieve details for ticker '{ticker}' from Screener.in. Verify symbol."}).encode("utf-8"))
+                return
+
         elif path == "/api/screener/config":
             user_id = verify_session(self.headers)
             if not user_id:

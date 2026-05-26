@@ -24,7 +24,7 @@ function getToken() {
     return localStorage.getItem("auth_token");
 }
 
-defAuthHeaders = () => {
+const defAuthHeaders = () => {
     return {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${getToken()}`
@@ -481,7 +481,7 @@ function setupSearch() {
         );
 
         if (matches.length === 0) {
-            dropdown.innerHTML = `<div class="search-suggestion-item">No results found</div>`;
+            dropdown.innerHTML = `<div class="search-suggestion-item" style="font-size: 11px; padding: 10px; color: var(--text-secondary);">No scanned results. Press <strong>Enter</strong> to scrape live from Screener.in!</div>`;
         } else {
             dropdown.innerHTML = matches.map(s => `
                 <div class="search-suggestion-item" data-ticker="${s.ticker}">
@@ -505,6 +505,54 @@ function setupSearch() {
             });
         }
         dropdown.classList.remove("hidden");
+    });
+
+    // Add Keypress listener to capture ENTER key for live individual scraping
+    searchInput.addEventListener("keypress", async (e) => {
+        if (e.key === "Enter") {
+            const query = searchInput.value.trim().toUpperCase();
+            if (query.length < 2) return;
+
+            dropdown.classList.add("hidden");
+            searchInput.blur();
+            
+            // Check if already loaded in memory
+            const existing = stocksData.find(s => s.ticker === query);
+            if (existing) {
+                searchInput.value = "";
+                loadAnalyzerForTicker(query);
+                return;
+            }
+
+            // Perform real-time scrape API request!
+            showToast(`Scraping Screener.in details for individual ticker: ${query}...`, "info");
+            
+            try {
+                const res = await fetch(`/api/stocks/search?ticker=${encodeURIComponent(query)}`, {
+                    headers: defAuthHeaders()
+                });
+                const data = await res.json();
+                
+                if (res.ok && data.stock) {
+                    // Prepend to our list
+                    stocksData.unshift(data.stock);
+                    
+                    // Re-render components
+                    renderAnalyzer();
+                    renderScreener();
+                    renderDashboard();
+                    
+                    // Immediately open in Stock Analyzer tab
+                    searchInput.value = "";
+                    loadAnalyzerForTicker(query);
+                    showToast(`Scraped and loaded ${query}! verdict computed.`, "success");
+                } else {
+                    showToast(data.error || `Could not find stock '${query}' on Screener.in.`, "error");
+                }
+            } catch (err) {
+                showToast("Failed to connect to search scraper API.", "error");
+            }
+        }
     });
 
     document.addEventListener("click", (e) => {
